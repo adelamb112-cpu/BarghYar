@@ -33,7 +33,9 @@ const App = {
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
         const targetTab = document.getElementById('tab-' + tabId);
         if (targetTab) targetTab.classList.add('active');
-        event.currentTarget.classList.add('active');
+        if (event && event.currentTarget) {
+            event.currentTarget.classList.add('active');
+        }
     },
 
     closeModals() {
@@ -61,7 +63,8 @@ const App = {
     },
 
     onCategoryChange() {
-        const catId = document.getElementById('pos-category-select').value;
+        const catSelect = document.getElementById('pos-category-select');
+        const catId = catSelect ? catSelect.value : '';
         const products = DB.get('products') || [];
         const filtered = catId ? products.filter(p => p.categoryId == catId) : products;
         const prodSelect = document.getElementById('pos-product-select');
@@ -75,11 +78,13 @@ const App = {
     },
 
     addPosItem() {
-        const prodId = document.getElementById('pos-product-select').value;
+        const prodSelect = document.getElementById('pos-product-select');
+        if (!prodSelect || !prodSelect.value) return alert('لطفا یک کالا انتخاب کنید');
+        const prodId = prodSelect.value;
         const qty = parseInt(document.getElementById('pos-qty').value) || 1;
         const products = DB.get('products') || [];
         const prod = products.find(p => p.id == prodId);
-        if (!prod) return alert('لطفا یک کالا انتخاب کنید');
+        if (!prod) return alert('کالای مورد نظر یافت نشد!');
         if (prod.stock < qty) return alert('موجودی کافی نیست!');
 
         const customerId = document.getElementById('pos-customer').value;
@@ -133,8 +138,10 @@ const App = {
         const total = Math.max(0, subtotal - discount);
         const due = Math.max(0, total - paid);
 
-        document.getElementById('pos-total-amount').innerText = total.toLocaleString();
-        document.getElementById('pos-due-amount').innerText = due.toLocaleString();
+        const totalEl = document.getElementById('pos-total-amount');
+        const dueEl = document.getElementById('pos-due-amount');
+        if (totalEl) totalEl.innerText = total.toLocaleString();
+        if (dueEl) dueEl.innerText = due.toLocaleString();
     },
 
     submitInvoice() {
@@ -525,7 +532,7 @@ const App = {
         const invoices = DB.get('invoices') || [];
         const products = DB.get('products') || [];
 
-        let salesToday = 0, totalSales = 0, totalProfit = 0, totalReceivables = 0, cashBalance = 0;
+        let totalSales = 0, totalProfit = 0, totalReceivables = 0, cashBalance = 0;
 
         invoices.forEach(inv => {
             totalSales += inv.total;
@@ -541,13 +548,15 @@ const App = {
             });
         });
 
-        document.getElementById('dash-sales-today').innerText = totalSales.toLocaleString() + ' تومان';
-        document.getElementById('dash-sales-weekly').innerText = totalSales.toLocaleString() + ' تومان';
-        document.getElementById('dash-sales-monthly').innerText = totalSales.toLocaleString() + ' تومان';
-        document.getElementById('dash-sales-yearly').innerText = totalSales.toLocaleString() + ' تومان';
-        document.getElementById('dash-cash-balance').innerText = cashBalance.toLocaleString() + ' تومان';
-        document.getElementById('dash-total-profit').innerText = totalProfit.toLocaleString() + ' تومان';
-        document.getElementById('dash-total-receivables').innerText = totalReceivables.toLocaleString() + ' تومان';
+        const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
+
+        setTxt('dash-sales-today', totalSales.toLocaleString() + ' تومان');
+        setTxt('dash-sales-weekly', totalSales.toLocaleString() + ' تومان');
+        setTxt('dash-sales-monthly', totalSales.toLocaleString() + ' تومان');
+        setTxt('dash-sales-yearly', totalSales.toLocaleString() + ' تومان');
+        setTxt('dash-cash-balance', cashBalance.toLocaleString() + ' تومان');
+        setTxt('dash-total-profit', totalProfit.toLocaleString() + ' تومان');
+        setTxt('dash-total-receivables', totalReceivables.toLocaleString() + ' تومان');
     }
 };
 
