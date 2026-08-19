@@ -5,16 +5,19 @@ const App = {
     editingRepairId: null,
     editingChequeId: null,
 
-    init() {
+    async init() {
+        if (typeof DB !== 'undefined' && DB.init) {
+            await DB.init();
+        }
         this.updateClock();
         setInterval(() => this.updateClock(), 1000);
-        this.renderCategoryOptions();
-        this.renderCustomerOptions();
-        this.renderInventory();
-        this.renderCustomersTable();
-        this.renderRepairsTable();
-        this.renderChequesTable();
-        this.updateDashboard();
+        await this.renderCategoryOptions();
+        await this.renderCustomerOptions();
+        await this.renderInventory();
+        await this.renderCustomersTable();
+        await this.renderRepairsTable();
+        await this.renderChequesTable();
+        await this.updateDashboard();
     },
 
     getFaDateTime() {
@@ -42,19 +45,19 @@ const App = {
         document.querySelectorAll('.modal-overlay').forEach(el => el.classList.remove('active'));
     },
 
-    renderCategoryOptions() {
-        const categories = DB.get('categories') || [];
+    async renderCategoryOptions() {
+        const categories = await DB.getAll('categories');
         const posCatSelect = document.getElementById('pos-category-select');
         const prodCatSelect = document.getElementById('prod-cat-select');
         let optionsHtml = '<option value="">همه دسته‌ها</option>';
         categories.forEach(c => { optionsHtml += `<option value="${c.id}">${c.name}</option>`; });
         if (posCatSelect) posCatSelect.innerHTML = optionsHtml;
         if (prodCatSelect) prodCatSelect.innerHTML = optionsHtml;
-        this.onCategoryChange();
+        await this.onCategoryChange();
     },
 
-    renderCustomerOptions() {
-        const customers = DB.get('customers') || [];
+    async renderCustomerOptions() {
+        const customers = await DB.getAll('customers');
         const select = document.getElementById('pos-customer');
         if (!select) return;
         let html = '<option value="cash">مشتری نقدی (متفرقه)</option>';
@@ -62,10 +65,10 @@ const App = {
         select.innerHTML = html;
     },
 
-    onCategoryChange() {
+    async onCategoryChange() {
         const catSelect = document.getElementById('pos-category-select');
         const catId = catSelect ? catSelect.value : '';
-        const products = DB.get('products') || [];
+        const products = await DB.getAll('products');
         const filtered = catId ? products.filter(p => p.categoryId == catId) : products;
         const prodSelect = document.getElementById('pos-product-select');
         let html = '';
@@ -77,18 +80,18 @@ const App = {
         this.calcPosTotal();
     },
 
-    addPosItem() {
+    async addPosItem() {
         const prodSelect = document.getElementById('pos-product-select');
         if (!prodSelect || !prodSelect.value) return alert('لطفا یک کالا انتخاب کنید');
         const prodId = prodSelect.value;
         const qty = parseInt(document.getElementById('pos-qty').value) || 1;
-        const products = DB.get('products') || [];
+        const products = await DB.getAll('products');
         const prod = products.find(p => p.id == prodId);
         if (!prod) return alert('کالای مورد نظر یافت نشد!');
         if (prod.stock < qty) return alert('موجودی کافی نیست!');
 
         const customerId = document.getElementById('pos-customer').value;
-        const customers = DB.get('customers') || [];
+        const customers = await DB.getAll('customers');
         const cust = customers.find(c => c.id == customerId);
 
         let unitPrice = prod.sellPrice;
@@ -133,8 +136,10 @@ const App = {
 
     calcPosTotal() {
         const subtotal = this.currentPosItems.reduce((sum, item) => sum + item.totalPrice, 0);
-        const discount = parseFloat(document.getElementById('pos-discount').value) || 0;
-        const paid = parseFloat(document.getElementById('pos-paid').value) || 0;
+        const discountInput = document.getElementById('pos-discount');
+        const paidInput = document.getElementById('pos-paid');
+        const discount = discountInput ? (parseFloat(discountInput.value) || 0) : 0;
+        const paid = paidInput ? (parseFloat(paidInput.value) || 0) : 0;
         const total = Math.max(0, subtotal - discount);
         const due = Math.max(0, total - paid);
 
@@ -144,7 +149,7 @@ const App = {
         if (dueEl) dueEl.innerText = due.toLocaleString();
     },
 
-    submitInvoice() {
+    async submitInvoice() {
         if (this.currentPosItems.length === 0) return alert('فاکتور خالی است!');
         const customerId = document.getElementById('pos-customer').value;
         const discount = parseFloat(document.getElementById('pos-discount').value) || 0;
@@ -154,7 +159,7 @@ const App = {
         const due = Math.max(0, total - paid);
 
         const invoice = {
-            id: Date.now(),
+            id: "inv-" + Date.now(),
             date: this.getFaDateTime(),
             customerId,
             items: [...this.currentPosItems],
@@ -165,22 +170,22 @@ const App = {
             due
         };
 
-        const invoices = DB.get('invoices') || [];
-        invoices.push(invoice);
-        DB.set('invoices', invoices);
+        await DB.put('invoices', invoice);
 
-        const products = DB.get('products') || [];
-        this.currentPosItems.forEach(item => {
+        const products = await DB.getAll('products');
+        for (let item of this.currentPosItems) {
             const p = products.find(prod => prod.id == item.productId);
-            if (p) p.stock -= item.qty;
-        });
-        DB.set('products', products);
+            if (p) {
+                p.stock -= item.qty;
+                await DB.put('products', p);
+            }
+        }
 
         alert('فاکتور با موفقیت در تاریخ ' + invoice.date + ' ثبت شد!');
         this.currentPosItems = [];
         this.renderPosTable();
-        this.renderInventory();
-        this.updateDashboard();
+        await this.renderInventory();
+        await this.updateDashboard();
     },
 
     openCategoryModal() {
@@ -188,21 +193,19 @@ const App = {
         document.getElementById('modal-category').classList.add('active');
     },
 
-    saveCategory() {
+    async saveCategory() {
         const name = document.getElementById('cat-name-input').value.trim();
         if (!name) return alert('نام دسته را وارد کنید');
-        const categories = DB.get('categories') || [];
-        categories.push({ id: Date.now(), name });
-        DB.set('categories', categories);
+        await DB.put('categories', { id: "cat-" + Date.now(), name });
         this.closeModals();
-        this.renderCategoryOptions();
-        this.renderInventory();
+        await this.renderCategoryOptions();
+        await this.renderInventory();
     },
 
-    openProductModal(prodId = null) {
+    async openProductModal(prodId = null) {
         this.editingProductId = prodId;
         if (prodId) {
-            const products = DB.get('products') || [];
+            const products = await DB.getAll('products');
             const p = products.find(x => x.id == prodId);
             if (p) {
                 document.getElementById('prod-cat-select').value = p.categoryId;
@@ -224,7 +227,7 @@ const App = {
         document.getElementById('modal-product').classList.add('active');
     },
 
-    saveProduct() {
+    async saveProduct() {
         const categoryId = document.getElementById('prod-cat-select').value;
         const name = document.getElementById('prod-name-input').value.trim();
         const unit = document.getElementById('prod-unit-input').value.trim();
@@ -236,22 +239,24 @@ const App = {
 
         if (!name) return alert('نام کالا را وارد کنید');
 
-        const products = DB.get('products') || [];
+        const products = await DB.getAll('products');
+        let productData = { categoryId, name, unit, buyPrice, sellPrice, coopPrice, stock, minStock };
+
         if (this.editingProductId) {
-            const p = products.find(x => x.id == this.editingProductId);
-            if (p) Object.assign(p, { categoryId, name, unit, buyPrice, sellPrice, coopPrice, stock, minStock });
+            productData.id = this.editingProductId;
         } else {
-            products.push({ id: Date.now(), categoryId, name, unit, buyPrice, sellPrice, coopPrice, stock, minStock });
+            productData.id = "p-" + Date.now();
         }
-        DB.set('products', products);
+
+        await DB.put('products', productData);
         this.closeModals();
-        this.renderInventory();
-        this.onCategoryChange();
+        await this.renderInventory();
+        await this.onCategoryChange();
     },
 
-    renderInventory() {
-        const categories = DB.get('categories') || [];
-        const products = DB.get('products') || [];
+    async renderInventory() {
+        const categories = await DB.getAll('categories');
+        const products = await DB.getAll('products');
         const container = document.getElementById('inventory-tree');
         if (!container) return;
 
@@ -270,7 +275,7 @@ const App = {
                     <td>${p.sellPrice.toLocaleString()}</td>
                     <td>${p.coopPrice.toLocaleString()}</td>
                     <td>${p.stock} ${p.unit}</td>
-                    <td><button onclick="App.openProductModal(${p.id})" class="btn btn-primary btn-sm">ویرایش</button></td>
+                    <td><button onclick="App.openProductModal('${p.id}')" class="btn btn-primary btn-sm">ویرایش</button></td>
                 </tr>`;
             });
             html += `</tbody></table></div></div>`;
@@ -281,18 +286,19 @@ const App = {
     openCustomerModal(custId = null) {
         this.editingCustomerId = custId;
         if (custId) {
-            const customers = DB.get('customers') || [];
-            const c = customers.find(x => x.id == custId);
-            if (c) {
-                document.getElementById('cust-name-input').value = c.name;
-                document.getElementById('cust-national-id').value = c.nationalId || '';
-                document.getElementById('cust-phone-input').value = c.phone || '';
-                document.getElementById('cust-address-input').value = c.address || '';
-                document.getElementById('cust-note-input').value = c.note || '';
-                document.getElementById('cust-is-coop').checked = !!c.isCoop;
-                document.getElementById('cust-discount-select').value = c.discountPercent || 0;
-                document.getElementById('cust-credit-input').value = c.creditLimit || 0;
-            }
+            DB.getAll('customers').then(customers => {
+                const c = customers.find(x => x.id == custId);
+                if (c) {
+                    document.getElementById('cust-name-input').value = c.name;
+                    document.getElementById('cust-national-id').value = c.nationalId || '';
+                    document.getElementById('cust-phone-input').value = c.phone || '';
+                    document.getElementById('cust-address-input').value = c.address || '';
+                    document.getElementById('cust-note-input').value = c.note || '';
+                    document.getElementById('cust-is-coop').checked = !!c.isCoop;
+                    document.getElementById('cust-discount-select').value = c.discountPercent || 0;
+                    document.getElementById('cust-credit-input').value = c.creditLimit || 0;
+                }
+            });
         } else {
             document.getElementById('cust-name-input').value = '';
             document.getElementById('cust-national-id').value = '';
@@ -306,7 +312,7 @@ const App = {
         document.getElementById('modal-customer').classList.add('active');
     },
 
-    saveCustomer() {
+    async saveCustomer() {
         const name = document.getElementById('cust-name-input').value.trim();
         const nationalId = document.getElementById('cust-national-id').value.trim();
         const phone = document.getElementById('cust-phone-input').value.trim();
@@ -318,31 +324,31 @@ const App = {
 
         if (!name) return alert('نام مشتری را وارد کنید');
 
-        const customers = DB.get('customers') || [];
+        let customerData = { name, nationalId, phone, address, note, isCoop, discountPercent, creditLimit };
         if (this.editingCustomerId) {
-            const c = customers.find(x => x.id == this.editingCustomerId);
-            if (c) Object.assign(c, { name, nationalId, phone, address, note, isCoop, discountPercent, creditLimit });
+            customerData.id = this.editingCustomerId;
         } else {
-            customers.push({ id: Date.now(), name, nationalId, phone, address, note, isCoop, discountPercent, creditLimit });
+            customerData.id = "cust-" + Date.now();
         }
-        DB.set('customers', customers);
+
+        await DB.put('customers', customerData);
         this.closeModals();
-        this.renderCustomerOptions();
-        this.renderCustomersTable();
+        await this.renderCustomerOptions();
+        await this.renderCustomersTable();
     },
 
-    getCustomerDueBalance(custId) {
-        const invoices = DB.get('invoices') || [];
+    async getCustomerDueBalance(custId) {
+        const invoices = await DB.getAll('invoices');
         return invoices.filter(inv => inv.customerId == custId).reduce((sum, inv) => sum + (inv.due || 0), 0);
     },
 
-    renderCustomersTable() {
-        const customers = DB.get('customers') || [];
+    async renderCustomersTable() {
+        const customers = await DB.getAll('customers');
         const tbody = document.getElementById('customers-table');
         if (!tbody) return;
         let html = '';
-        customers.forEach(c => {
-            const dueBalance = this.getCustomerDueBalance(c.id);
+        for (let c of customers) {
+            const dueBalance = await this.getCustomerDueBalance(c.id);
             html += `<tr>
                 <td>${c.name} ${c.isCoop ? '🤝' : ''}</td>
                 <td>${c.phone || '-'}</td>
@@ -351,21 +357,21 @@ const App = {
                 <td style="color:${dueBalance > 0 ? '#ef4444' : '#22c55e'}; font-weight:bold;">${dueBalance.toLocaleString()}</td>
                 <td>${c.note || '-'}</td>
                 <td>
-                    <button onclick="App.openCustomerModal(${c.id})" class="btn btn-primary btn-sm">ویرایش</button>
-                    <button onclick="App.viewCustomerProfile(${c.id})" class="btn btn-secondary btn-sm">پرونده</button>
+                    <button onclick="App.openCustomerModal('${c.id}')" class="btn btn-primary btn-sm">ویرایش</button>
+                    <button onclick="App.viewCustomerProfile('${c.id}')" class="btn btn-secondary btn-sm">پرونده</button>
                 </td>
             </tr>`;
-        });
+        }
         tbody.innerHTML = html;
     },
 
-    viewCustomerProfile(custId) {
-        const customers = DB.get('customers') || [];
+    async viewCustomerProfile(custId) {
+        const customers = await DB.getAll('customers');
         const c = customers.find(x => x.id == custId);
         if (!c) return;
 
         document.getElementById('profile-cust-name').innerText = 'پرونده مشتری: ' + c.name;
-        const dueBalance = this.getCustomerDueBalance(c.id);
+        const dueBalance = await this.getCustomerDueBalance(c.id);
         document.getElementById('profile-details').innerHTML = `
             <p><strong>تلفن:</strong> ${c.phone || '-'}</p>
             <p><strong>کد ملی:</strong> ${c.nationalId || '-'}</p>
@@ -374,7 +380,7 @@ const App = {
             <p><strong>مانده بدهی کل:</strong> <span style="color:#ef4444; font-weight:bold;">${dueBalance.toLocaleString()} تومان</span></p>
         `;
 
-        const invoices = DB.get('invoices') || [];
+        const invoices = await DB.getAll('invoices');
         const custInvoices = invoices.filter(i => i.customerId == custId);
         let invHtml = '<table class="data-table"><thead><tr><th>تاریخ</th><th>مبلغ کل</th><th>پرداختی</th><th>مانده</th></tr></thead><tbody>';
         custInvoices.forEach(inv => {
@@ -391,10 +397,10 @@ const App = {
         document.getElementById('modal-customer-profile').classList.add('active');
     },
 
-    openRepairModal(id = null) {
+    async openRepairModal(id = null) {
         this.editingRepairId = id;
         if (id) {
-            const repairs = DB.get('repairs') || [];
+            const repairs = await DB.getAll('repairs');
             const r = repairs.find(x => x.id == id);
             if (r) {
                 document.getElementById('repair-cust-name').value = r.customerName;
@@ -418,7 +424,7 @@ const App = {
         document.getElementById('modal-repair').classList.add('active');
     },
 
-    saveRepair() {
+    async saveRepair() {
         const customerName = document.getElementById('repair-cust-name').value.trim();
         const phone = document.getElementById('repair-phone').value.trim();
         const device = document.getElementById('repair-device').value.trim();
@@ -430,20 +436,21 @@ const App = {
 
         if (!customerName || !device) return alert('نام مشتری و دستگاه را وارد کنید');
 
-        const repairs = DB.get('repairs') || [];
+        let repairData = { customerName, phone, device, serial, problem, deposit, cost, status };
         if (this.editingRepairId) {
-            const r = repairs.find(x => x.id == this.editingRepairId);
-            if (r) Object.assign(r, { customerName, phone, device, serial, problem, deposit, cost, status });
+            repairData.id = this.editingRepairId;
         } else {
-            repairs.push({ id: Date.now(), date: this.getFaDateTime(), customerName, phone, device, serial, problem, deposit, cost, status });
+            repairData.id = "rep-" + Date.now();
+            repairData.date = this.getFaDateTime();
         }
-        DB.set('repairs', repairs);
+
+        await DB.put('repairs', repairData);
         this.closeModals();
-        this.renderRepairsTable();
+        await this.renderRepairsTable();
     },
 
-    renderRepairsTable() {
-        const repairs = DB.get('repairs') || [];
+    async renderRepairsTable() {
+        const repairs = await DB.getAll('repairs');
         const tbody = document.getElementById('repairs-table');
         if (!tbody) return;
         let html = '';
@@ -457,16 +464,16 @@ const App = {
                 <td>${r.deposit.toLocaleString()}</td>
                 <td>${r.cost.toLocaleString()}</td>
                 <td><span class="badge">${r.status}</span></td>
-                <td><button onclick="App.openRepairModal(${r.id})" class="btn btn-primary btn-sm">ویرایش</button></td>
+                <td><button onclick="App.openRepairModal('${r.id}')" class="btn btn-primary btn-sm">ویرایش</button></td>
             </tr>`;
         });
         tbody.innerHTML = html;
     },
 
-    openChequeModal(id = null) {
+    async openChequeModal(id = null) {
         this.editingChequeId = id;
         if (id) {
-            const cheques = DB.get('cheques') || [];
+            const cheques = await DB.getAll('cheques');
             const ch = cheques.find(x => x.id == id);
             if (ch) {
                 document.getElementById('cheque-number').value = ch.number;
@@ -486,7 +493,7 @@ const App = {
         document.getElementById('modal-cheque').classList.add('active');
     },
 
-    saveCheque() {
+    async saveCheque() {
         const number = document.getElementById('cheque-number').value.trim();
         const bank = document.getElementById('cheque-bank').value.trim();
         const customerName = document.getElementById('cheque-cust-name').value.trim();
@@ -496,20 +503,21 @@ const App = {
 
         if (!number || !amount) return alert('شماره چک و مبلغ را وارد کنید');
 
-        const cheques = DB.get('cheques') || [];
+        let chequeData = { number, bank, customerName, amount, dueDate, status };
         if (this.editingChequeId) {
-            const ch = cheques.find(x => x.id == this.editingChequeId);
-            if (ch) Object.assign(ch, { number, bank, customerName, amount, dueDate, status });
+            chequeData.id = this.editingChequeId;
         } else {
-            cheques.push({ id: Date.now(), registerDate: this.getFaDateTime(), number, bank, customerName, amount, dueDate, status });
+            chequeData.id = "chq-" + Date.now();
+            chequeData.registerDate = this.getFaDateTime();
         }
-        DB.set('cheques', cheques);
+
+        await DB.put('cheques', chequeData);
         this.closeModals();
-        this.renderChequesTable();
+        await this.renderChequesTable();
     },
 
-    renderChequesTable() {
-        const cheques = DB.get('cheques') || [];
+    async renderChequesTable() {
+        const cheques = await DB.getAll('cheques');
         const tbody = document.getElementById('cheques-table');
         if (!tbody) return;
         let html = '';
@@ -522,15 +530,15 @@ const App = {
                 <td>${ch.dueDate}</td>
                 <td>${ch.registerDate || '-'}</td>
                 <td><span class="badge">${ch.status}</span></td>
-                <td><button onclick="App.openChequeModal(${ch.id})" class="btn btn-primary btn-sm">ویرایش</button></td>
+                <td><button onclick="App.openChequeModal('${ch.id}')" class="btn btn-primary btn-sm">ویرایش</button></td>
             </tr>`;
         });
         tbody.innerHTML = html;
     },
 
-    updateDashboard() {
-        const invoices = DB.get('invoices') || [];
-        const products = DB.get('products') || [];
+    async updateDashboard() {
+        const invoices = await DB.getAll('invoices');
+        const products = await DB.getAll('products');
 
         let totalSales = 0, totalProfit = 0, totalReceivables = 0, cashBalance = 0;
 
