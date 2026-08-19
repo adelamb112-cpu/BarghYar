@@ -3,25 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>برق یار - حسابداری و مدیریت فروشگاه</title>
-    <link rel="stylesheet" href="style.css?v=2">
-    <link rel="manifest" href="manifest.json">
+    <title>برق یار - سیستم مدیریت فروشگاه</title>
+    <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
     <div class="app-container">
         <header class="top-header">
             <h2>⚡ سیستم مدیریت و حسابداری برق یار</h2>
-            <div id="live-clock" style="font-weight: bold; color: var(--accent-color);"></div>
+            <div id="live-clock" style="font-weight: bold; color: #38bdf8;"></div>
             <div id="sync-status" class="status-offline">☁️ آفلاین</div>
         </header>
 
         <nav class="tab-nav">
-            <button class="tab-btn active" onclick="App.showTab('pos')">🛒 صدور فاکتور (POS)</button>
-            <button class="tab-btn" onclick="App.showTab('inventory')">📦 انبار و کالاها</button>
+            <button class="tab-btn active" onclick="App.showTab('pos')">🛒 فاکتور (POS)</button>
+            <button class="tab-btn" onclick="App.showTab('inventory')">📦 انبار کالا</button>
             <button class="tab-btn" onclick="App.showTab('customers')">👥 مشتریان</button>
-            <button class="tab-btn" onclick="App.showTab('repairs')">🛠️ بخش تعمیرات</button>
-            <button class="tab-btn" onclick="App.showTab('cheques')">📑 مدیریت چک‌ها</button>
-            <button class="tab-btn" onclick="App.showTab('dashboard')">📊 داشبورد و آمار</button>
+            <button class="tab-btn" onclick="App.showTab('repairs')">🛠️ تعمیرات</button>
+            <button class="tab-btn" onclick="App.showTab('cheques')">📑 چک‌ها</button>
+            <button class="tab-btn" onclick="App.showTab('dashboard')">📊 داشبورد</button>
             <button class="tab-btn" onclick="App.showTab('settings')">⚙️ تنظیمات</button>
         </nav>
 
@@ -29,7 +28,7 @@
             <div id="tab-pos" class="tab-content active">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>مشتری:</label>
+                        <label>انتخاب مشتری:</label>
                         <select id="pos-customer" onchange="App.onCustomerChange()"></select>
                     </div>
                     <div class="form-group">
@@ -37,105 +36,115 @@
                         <select id="pos-category-select" onchange="App.onCategoryChange()"></select>
                     </div>
                     <div class="form-group">
-                        <label>انتخاب کالا:</label>
+                        <label>کالا:</label>
                         <select id="pos-product-select"></select>
                     </div>
                     <div class="form-group">
-                        <label>تعداد/مقدار:</label>
+                        <label>تعداد:</label>
                         <input type="number" id="pos-qty" value="1" min="1">
                     </div>
                 </div>
                 <button onclick="App.addPosItem()" class="btn btn-primary">+ افزودن به فاکتور</button>
 
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>نام کالا</th>
-                            <th>تعداد</th>
-                            <th>قیمت واحد</th>
-                            <th>قیمت کل</th>
-                            <th>عملیات</th>
-                        </tr>
-                    </thead>
-                    <tbody id="pos-items-table"></tbody>
-                </table>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>کالا</th>
+                                <th>تعداد</th>
+                                <th>قیمت واحد</th>
+                                <th>جمع</th>
+                                <th>حذف</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pos-items-table"></tbody>
+                    </table>
+                </div>
 
                 <div class="invoice-summary">
                     <div class="form-grid">
                         <div class="form-group">
-                            <label>تخفیف دستی (تومان):</label>
+                            <label>تخفیف (تومان):</label>
                             <input type="number" id="pos-discount" value="0" oninput="App.calcPosTotal()">
                         </div>
                         <div class="form-group">
-                            <label>مبلغ پرداختی (تومان):</label>
+                            <label>پرداختی (تومان):</label>
                             <input type="number" id="pos-paid" value="0" oninput="App.calcPosTotal()">
                         </div>
                     </div>
-                    <h3>مبلغ قابل پرداخت: <span id="pos-total-amount">0</span> تومان</h3>
+                    <h3>مبلغ فاکتور: <span id="pos-total-amount">0</span> تومان</h3>
                     <h4>مانده بدهی: <span id="pos-due-amount">0</span> تومان</h4>
-                    <button onclick="App.submitInvoice()" class="btn btn-success btn-large">ثبت و چاپ فاکتور</button>
+                    <button onclick="App.submitInvoice()" class="btn btn-success" style="width:100%; font-size:16px;">ثبت و ثبت تاریخ شمسی</button>
                 </div>
             </div>
 
             <div id="tab-inventory" class="tab-content">
-                <button onclick="App.openCategoryModal()" class="btn btn-primary">+ دسته‌بندی جدید</button>
+                <button onclick="App.openCategoryModal()" class="btn btn-primary">+ دسته جدید</button>
                 <button onclick="App.openProductModal()" class="btn btn-success">+ کالای جدید</button>
                 <div id="inventory-tree" class="inventory-tree"></div>
             </div>
 
             <div id="tab-customers" class="tab-content">
-                <button onclick="App.openCustomerModal()" class="btn btn-primary">+ ثبت مشتری جدید</button>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>نام مشتری</th>
-                            <th>تلفن</th>
-                            <th>کد ملی</th>
-                            <th>سقف اعتبار</th>
-                            <th>مانده حساب</th>
-                            <th>عملیات</th>
-                        </tr>
-                    </thead>
-                    <tbody id="customers-table"></tbody>
-                </table>
+                <button onclick="App.openCustomerModal()" class="btn btn-primary">+ مشتری جدید</button>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>نام</th>
+                                <th>تلفن</th>
+                                <th>کد ملی</th>
+                                <th>اعتبار</th>
+                                <th>مانده بدهی</th>
+                                <th>توضیحات</th>
+                                <th>عملیات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customers-table"></tbody>
+                    </table>
+                </div>
             </div>
 
             <div id="tab-repairs" class="tab-content">
-                <button onclick="App.openRepairModal()" class="btn btn-primary">+ پذیرش تعمیرات جدید</button>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>کد پیگیری</th>
-                            <th>تاریخ پذیرش</th>
-                            <th>مشتری</th>
-                            <th>دستگاه / سریال</th>
-                            <th>ایراد</th>
-                            <th>بیعانه</th>
-                            <th>هزینه کل</th>
-                            <th>وضعیت</th>
-                            <th>عملیات</th>
-                        </tr>
-                    </thead>
-                    <tbody id="repairs-table"></tbody>
-                </table>
+                <button onclick="App.openRepairModal()" class="btn btn-primary">+ پذیرش تعمیرات</button>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>کد</th>
+                                <th>تاریخ و ساعت پذیرش</th>
+                                <th>مشتری</th>
+                                <th>دستگاه/سریال</th>
+                                <th>ایراد</th>
+                                <th>بیعانه</th>
+                                <th>هزینه</th>
+                                <th>وضعیت</th>
+                                <th>عملیات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="repairs-table"></tbody>
+                    </table>
+                </div>
             </div>
 
             <div id="tab-cheques" class="tab-content">
-                <button onclick="App.openChequeModal()" class="btn btn-primary">+ ثبت چک جدید</button>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>شماره چک</th>
-                            <th>بانک</th>
-                            <th>صادرکننده</th>
-                            <th>مبلغ</th>
-                            <th>تاریخ سررسید</th>
-                            <th>وضعیت</th>
-                            <th>عملیات</th>
-                        </tr>
-                    </thead>
-                    <tbody id="cheques-table"></tbody>
-                </table>
+                <button onclick="App.openChequeModal()" class="btn btn-primary">+ چک جدید</button>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>شماره</th>
+                                <th>بانک</th>
+                                <th>طرف حساب</th>
+                                <th>مبلغ</th>
+                                <th>سررسید</th>
+                                <th>تاریخ ثبت</th>
+                                <th>وضعیت</th>
+                                <th>عملیات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cheques-table"></tbody>
+                    </table>
+                </div>
             </div>
 
             <div id="tab-dashboard" class="tab-content">
@@ -146,13 +155,16 @@
                     <div class="card"><h3>فروش سال</h3><p id="dash-sales-yearly">0 تومان</p></div>
                     <div class="card"><h3>موجودی نقدی</h3><p id="dash-cash-balance">0 تومان</p></div>
                     <div class="card"><h3>سود کل</h3><p id="dash-total-profit">0 تومان</p></div>
-                    <div class="card"><h3>کل طلبکاری‌ها</h3><p id="dash-total-receivables">0 تومان</p></div>
+                    <div class="card"><h3>طلبکاری‌ها</h3><p id="dash-total-receivables">0 تومان</p></div>
                 </div>
             </div>
 
             <div id="tab-settings" class="tab-content">
-                <h3>پشتیبان‌گیری و بازیابی</h3>
-                <button onclick="DB.exportBackup()" class="btn btn-primary">دانلود فایل پشتیبان</button>
+                <h3>تغییر رمز عبور ورود</h3>
+                <button onclick="Auth.openChangePassModal()" class="btn btn-primary">🔑 تغییر رمز برنامه</button>
+                <hr style="margin:20px 0; border-color:var(--border-color);">
+                <h3>پشتیبان‌گیری</h3>
+                <button onclick="DB.exportBackup()" class="btn btn-success">دانلود پشتیبان</button>
                 <input type="file" onchange="DB.importBackup(event)" style="margin-top:10px;">
             </div>
         </main>
@@ -191,9 +203,10 @@
         <div class="modal-card">
             <h3>ثبت / ویرایش مشتری</h3>
             <div class="form-group"><label>نام و نام خانوادگی:</label><input type="text" id="cust-name-input"></div>
-            <div class="form-group"><label>کد ملی / شناسه ملی:</label><input type="text" id="cust-national-id"></div>
+            <div class="form-group"><label>کد ملی:</label><input type="text" id="cust-national-id"></div>
             <div class="form-group"><label>تلفن:</label><input type="text" id="cust-phone-input"></div>
             <div class="form-group"><label>آدرس:</label><input type="text" id="cust-address-input"></div>
+            <div class="form-group"><label>توضیحات تکمیلی:</label><input type="text" id="cust-note-input" placeholder="توضیحات مربوط به مشتری"></div>
             <div class="form-group"><label><input type="checkbox" id="cust-is-coop"> مشتری همکار است</label></div>
             <div class="form-group">
                 <label>درصد تخفیف همکار:</label>
@@ -203,10 +216,6 @@
                     <option value="10">10%</option>
                     <option value="15">15%</option>
                     <option value="20">20%</option>
-                    <option value="25">25%</option>
-                    <option value="30">30%</option>
-                    <option value="35">35%</option>
-                    <option value="40">40%</option>
                 </select>
             </div>
             <div class="form-group"><label>سقف اعتبار (تومان):</label><input type="number" id="cust-credit-input"></div>
@@ -278,9 +287,21 @@
         </div>
     </div>
 
-    <script src="db.js?v=2"></script>
-    <script src="auth.js?v=2"></script>
-    <script src="sync.js?v=2"></script>
-    <script src="app.js?v=2"></script>
+    <div id="modal-change-pass" class="modal-overlay">
+        <div class="modal-card">
+            <h3>🔑 تغییر رمز عبور</h3>
+            <div class="form-group"><label>رمز عبور فعلی:</label><input type="password" id="pass-old"></div>
+            <div class="form-group"><label>رمز عبور جدید:</label><input type="password" id="pass-new"></div>
+            <div class="modal-actions">
+                <button onclick="Auth.changePassword()" class="btn btn-success">تغییر رمز</button>
+                <button onclick="App.closeModals()" class="btn btn-secondary">انصراف</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="db.js?v=3"></script>
+    <script src="auth.js?v=3"></script>
+    <script src="sync.js?v=3"></script>
+    <script src="app.js?v=3"></script>
 </body>
 </html>
