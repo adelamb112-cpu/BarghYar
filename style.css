@@ -68,7 +68,7 @@ body {
     display: block;
 }
 
-/* رنگ‌بندی خاص برای پارتیشن‌ها */
+/* رنگ‌بندی پارتیشن‌ها */
 #tab-pos { background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #1e293b; }
 #tab-inventory { background: #111827; padding: 15px; border-radius: 8px; border: 1px solid #1f2937; }
 #tab-customers { background: #064e3b; padding: 15px; border-radius: 8px; border: 1px solid #047857; }
