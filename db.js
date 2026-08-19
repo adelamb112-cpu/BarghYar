@@ -3,13 +3,15 @@ const DB = (() => {
 
     function init() {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open("BarghYarDB", 2);
+            const request = indexedDB.open("BarghYarDB", 3);
             request.onupgradeneeded = (e) => {
                 db = e.target.result;
                 if (!db.objectStoreNames.contains("categories")) db.createObjectStore("categories", { keyPath: "id" });
                 if (!db.objectStoreNames.contains("products")) db.createObjectStore("products", { keyPath: "id" });
                 if (!db.objectStoreNames.contains("customers")) db.createObjectStore("customers", { keyPath: "id" });
                 if (!db.objectStoreNames.contains("invoices")) db.createObjectStore("invoices", { keyPath: "id" });
+                if (!db.objectStoreNames.contains("cheques")) db.createObjectStore("cheques", { keyPath: "id" });
+                if (!db.objectStoreNames.contains("repairs")) db.createObjectStore("repairs", { keyPath: "id" });
             };
             request.onsuccess = (e) => {
                 db = e.target.result;
@@ -69,7 +71,9 @@ const DB = (() => {
             categories: await getAll("categories"),
             products: await getAll("products"),
             customers: await getAll("customers"),
-            invoices: await getAll("invoices")
+            invoices: await getAll("invoices"),
+            cheques: await getAll("cheques"),
+            repairs: await getAll("repairs")
         };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
         const a = document.createElement("a");
