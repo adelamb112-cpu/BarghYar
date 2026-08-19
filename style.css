@@ -1,9 +1,9 @@
 :root {
-    --bg-color: #0f172a;
-    --panel-color: #1e293b;
+    --bg-color: #0b132b;
+    --panel-color: #1c2541;
     --accent-color: #38bdf8;
     --text-color: #f8fafc;
-    --border-color: #334155;
+    --border-color: #3b4252;
     --success: #22c55e;
     --danger: #ef4444;
 }
@@ -23,39 +23,40 @@ body {
 }
 
 .top-header {
-    background-color: var(--panel-color);
-    padding: 10px 20px;
+    background-color: #1e1b4b;
+    padding: 10px 15px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 2px solid #4338ca;
 }
 
 .tab-nav {
     display: flex;
     overflow-x: auto;
-    background-color: var(--panel-color);
+    background-color: #0f172a;
     border-bottom: 1px solid var(--border-color);
 }
 
 .tab-btn {
-    padding: 12px 16px;
+    padding: 12px 14px;
     background: none;
     border: none;
     color: #94a3b8;
     cursor: pointer;
     white-space: nowrap;
-    font-size: 14px;
+    font-size: 13px;
 }
 
 .tab-btn.active {
     color: var(--accent-color);
-    border-bottom: 2px solid var(--accent-color);
+    border-bottom: 3px solid var(--accent-color);
     font-weight: bold;
+    background: #1e293b;
 }
 
 .content-area {
-    padding: 20px;
+    padding: 15px;
     flex: 1;
 }
 
@@ -67,20 +68,36 @@ body {
     display: block;
 }
 
+/* رنگ‌بندی خاص برای پارتیشن‌ها */
+#tab-pos { background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #1e293b; }
+#tab-inventory { background: #111827; padding: 15px; border-radius: 8px; border: 1px solid #1f2937; }
+#tab-customers { background: #064e3b; padding: 15px; border-radius: 8px; border: 1px solid #047857; }
+#tab-repairs { background: #451a03; padding: 15px; border-radius: 8px; border: 1px solid #78350f; }
+#tab-cheques { background: #312e81; padding: 15px; border-radius: 8px; border: 1px solid #4338ca; }
+#tab-dashboard { background: #1e1b4b; padding: 15px; border-radius: 8px; border: 1px solid #3730a3; }
+#tab-settings { background: #172554; padding: 15px; border-radius: 8px; border: 1px solid #1d4ed8; }
+
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    margin-top: 15px;
+}
+
 .data-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 15px;
+    white-space: nowrap;
 }
 
 .data-table th, .data-table td {
     border: 1px solid var(--border-color);
-    padding: 10px 12px;
+    padding: 8px 10px;
     text-align: right;
+    font-size: 13px;
 }
 
 .data-table th {
-    background-color: var(--panel-color);
+    background-color: rgba(0,0,0,0.3);
 }
 
 .modal-overlay {
@@ -91,6 +108,8 @@ body {
     justify-content: center;
     align-items: center;
     z-index: 1000;
+    overflow-y: auto;
+    padding: 10px;
 }
 
 .modal-overlay.active {
@@ -98,11 +117,14 @@ body {
 }
 
 .modal-card {
-    background: var(--panel-color);
-    padding: 25px;
+    background: #1e293b;
+    padding: 20px;
     border-radius: 8px;
-    width: 90%;
-    max-width: 450px;
+    width: 95%;
+    max-width: 420px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-sizing: border-box;
 }
 
 .modal-large {
@@ -113,91 +135,114 @@ body {
     display: flex;
     justify-content: flex-end;
     gap: 10px;
-    margin-top: 20px;
+    margin-top: 15px;
 }
 
 .btn {
-    padding: 8px 16px;
+    padding: 8px 14px;
     border: none;
     border-radius: 4px;
     cursor: pointer;
+    font-size: 13px;
 }
 
 .btn-primary { background: var(--accent-color); color: #000; font-weight: bold; }
 .btn-secondary { background: #64748b; color: #fff; }
 .btn-success { background: var(--success); color: #fff; }
 .btn-danger { background: var(--danger); color: #fff; }
-.btn-sm { padding: 4px 8px; font-size: 12px; }
+.btn-sm { padding: 4px 8px; font-size: 11px; }
 
 .form-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-    margin-bottom: 15px;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 10px;
 }
 
 .form-group {
     display: flex;
     flex-direction: column;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
+}
+
+.form-group label {
+    font-size: 12px;
+    color: #cbd5e1;
 }
 
 input, select {
-    padding: 8px 12px;
+    padding: 8px 10px;
     border-radius: 4px;
     border: 1px solid var(--border-color);
-    background: var(--bg-color);
+    background: #0f172a;
     color: #fff;
-    margin-top: 5px;
+    margin-top: 4px;
+    font-size: 13px;
 }
 
 .invoice-summary {
-    background: var(--panel-color);
-    padding: 15px;
+    background: rgba(0,0,0,0.2);
+    padding: 12px;
     border-radius: 6px;
-    margin-top: 20px;
+    margin-top: 15px;
 }
 
 .inventory-tree {
-    background: var(--panel-color);
-    padding: 15px;
+    background: rgba(0,0,0,0.2);
+    padding: 10px;
     border-radius: 6px;
     margin-top: 15px;
 }
 
 .tree-cat {
-    margin-bottom: 15px;
+    margin-bottom: 12px;
     border-bottom: 1px solid var(--border-color);
-    padding-bottom: 10px;
+    padding-bottom: 8px;
 }
 
 .tree-prod-item {
     display: flex;
     justify-content: space-between;
-    padding: 6px 12px;
+    align-items: center;
+    padding: 6px 10px;
     background: #0f172a;
     margin: 4px 0;
     border-radius: 4px;
+    font-size: 12px;
 }
 
 .dashboard-cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 15px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
 }
 
 .card {
-    background: var(--panel-color);
-    padding: 20px;
+    background: rgba(0,0,0,0.3);
+    padding: 15px;
     border-radius: 8px;
     border: 1px solid var(--border-color);
 }
 
+.card h3 {
+    margin: 0;
+    font-size: 14px;
+    color: #94a3b8;
+}
+
+.card p {
+    margin: 8px 0 0 0;
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--accent-color);
+}
+
 .profile-box {
     background: #0f172a;
-    padding: 12px;
+    padding: 10px;
     border-radius: 6px;
-    margin-bottom: 15px;
+    margin-bottom: 12px;
+    font-size: 13px;
 }
 
 .badge {
@@ -205,6 +250,6 @@ input, select {
     color: #000;
     padding: 2px 6px;
     border-radius: 4px;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: bold;
 }
