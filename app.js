@@ -18,19 +18,16 @@ const App = (() => {
         updateDashboard();
     }
 
-    function startClock() {
-        setInterval(() => {
-            const now = new Date();
-            const timeStr = now.toLocaleTimeString('fa-IR');
-            const dateStr = now.toLocaleDateString('fa-IR');
-            const clockEl = document.getElementById("live-clock");
-            if (clockEl) clockEl.innerText = `${dateStr} - ${timeStr}`;
-        }, 1000);
+    function getFaDateTime() {
+        const n = new Date();
+        return n.toLocaleDateString('fa-IR') + ' ' + n.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     }
 
-    function getPersianDateTime() {
-        const now = new Date();
-        return `${now.toLocaleDateString('fa-IR')} ${now.toLocaleTimeString('fa-IR')}`;
+    function startClock() {
+        setInterval(() => {
+            const clockEl = document.getElementById("live-clock");
+            if (clockEl) clockEl.innerText = getFaDateTime();
+        }, 1000);
     }
 
     function showTab(tabId) {
@@ -42,6 +39,7 @@ const App = (() => {
         if (tabId === 'dashboard') updateDashboard();
         if (tabId === 'repairs') loadRepairs();
         if (tabId === 'cheques') loadCheques();
+        if (tabId === 'customers') loadCustomers();
     }
 
     function closeModals() {
@@ -168,7 +166,7 @@ const App = (() => {
                 </div>`;
             catProducts.forEach(p => {
                 const isLow = p.stock <= p.minStock;
-                const lowBadge = isLow ? '<span style="color:red; font-weight:bold;"> (⚠️ کمبود موجودی)</span>' : '';
+                const lowBadge = isLow ? '<span style="color:#ef4444; font-weight:bold;"> (⚠️ کمبود موجودی)</span>' : '';
                 html += `<div class="tree-prod-item">
                     <span>└─ <strong>${p.name}</strong> - قیمت: ${p.sellPrice.toLocaleString()} - همکار: ${p.coopPrice.toLocaleString()} - موجودی: ${p.stock} ${p.unit}${lowBadge}</span>
                     <div>
@@ -192,6 +190,7 @@ const App = (() => {
                 document.getElementById("cust-national-id").value = c.nationalId || "";
                 document.getElementById("cust-phone-input").value = c.phone || "";
                 document.getElementById("cust-address-input").value = c.address || "";
+                document.getElementById("cust-note-input").value = c.notes || "";
                 document.getElementById("cust-is-coop").checked = !!c.isCoop;
                 document.getElementById("cust-discount-select").value = c.discountPercent || 0;
                 document.getElementById("cust-credit-input").value = c.creditLimit || 0;
@@ -201,6 +200,7 @@ const App = (() => {
             document.getElementById("cust-national-id").value = "";
             document.getElementById("cust-phone-input").value = "";
             document.getElementById("cust-address-input").value = "";
+            document.getElementById("cust-note-input").value = "";
             document.getElementById("cust-is-coop").checked = false;
             document.getElementById("cust-discount-select").value = 0;
             document.getElementById("cust-credit-input").value = 0;
@@ -218,18 +218,19 @@ const App = (() => {
             nationalId: document.getElementById("cust-national-id").value,
             phone: document.getElementById("cust-phone-input").value,
             address: document.getElementById("cust-address-input").value,
+            notes: document.getElementById("cust-note-input").value,
             isCoop: document.getElementById("cust-is-coop").checked,
             discountPercent: parseFloat(document.getElementById("cust-discount-select").value) || 0,
             creditLimit: parseFloat(document.getElementById("cust-credit-input").value) || 0,
-            createdAt: editingCustomerId ? undefined : getPersianDateTime(),
+            createdAt: editingCustomerId ? undefined : getFaDateTime(),
             balance: 0
         };
 
         if (editingCustomerId) {
             const existing = (await DB.getAll("customers")).find(x => x.id === editingCustomerId);
             if (existing) {
-                custData.balance = existing.balance;
-                custData.createdAt = existing.createdAt || getPersianDateTime();
+                custData.balance = existing.balance || 0;
+                custData.createdAt = existing.createdAt || getFaDateTime();
             }
         }
 
@@ -259,10 +260,11 @@ const App = (() => {
                     <td>${c.name} ${c.isCoop ? '<span class="badge">همکار</span>' : ''}</td>
                     <td>${c.phone || '-'}</td>
                     <td>${c.nationalId || '-'}</td>
-                    <td>${c.creditLimit.toLocaleString()} تومان</td>
-                    <td>${c.balance.toLocaleString()} تومان</td>
+                    <td>${c.creditLimit ? c.creditLimit.toLocaleString() : 0} تومان</td>
+                    <td><strong style="color:${(c.balance || 0) > 0 ? '#ef4444' : '#22c55e'}">${(c.balance || 0).toLocaleString()} تومان</strong></td>
+                    <td>${c.notes || '-'}</td>
                     <td>
-                        <button onclick="App.openCustomerProfile('${c.id}')" class="btn btn-primary btn-sm">پرونده کامل</button>
+                        <button onclick="App.openCustomerProfile('${c.id}')" class="btn btn-primary btn-sm">پرونده</button>
                         <button onclick="App.openCustomerModal('${c.id}')" class="btn btn-secondary btn-sm">ویرایش</button>
                         <button onclick="App.deleteCustomer('${c.id}')" class="btn btn-danger btn-sm">حذف</button>
                     </td>
@@ -276,15 +278,16 @@ const App = (() => {
         const c = customers.find(x => x.id === custId);
         if (!c) return;
 
-        document.getElementById("profile-cust-name").innerText = `پرونده کامل مشتری: ${c.name}`;
+        document.getElementById("profile-cust-name").innerText = `پرونده مشتری: ${c.name}`;
         document.getElementById("profile-details").innerHTML = `
-            <p><strong>کد ملی / شناسه ملی:</strong> ${c.nationalId || '-'}</p>
+            <p><strong>کد ملی:</strong> ${c.nationalId || '-'}</p>
             <p><strong>تلفن:</strong> ${c.phone || '-'}</p>
             <p><strong>آدرس:</strong> ${c.address || '-'}</p>
-            <p><strong>تاریخ و ساعت ثبت:</strong> ${c.createdAt || '-'}</p>
+            <p><strong>توضیحات تکمیلی:</strong> ${c.notes || '-'}</p>
+            <p><strong>تاریخ ثبت:</strong> ${c.createdAt || '-'}</p>
             <p><strong>نوع مشتری:</strong> ${c.isCoop ? `همکار (تخفیف ${c.discountPercent}٪)` : 'عادی'}</p>
-            <p><strong>سقف اعتبار:</strong> ${c.creditLimit.toLocaleString()} تومان</p>
-            <p><strong>مانده بدهی / وضعیت:</strong> ${c.balance.toLocaleString()} تومان</p>
+            <p><strong>سقف اعتبار:</strong> ${(c.creditLimit || 0).toLocaleString()} تومان</p>
+            <p><strong>مانده بدهی:</strong> <span style="color:${(c.balance || 0) > 0 ? '#ef4444' : '#22c55e'}; font-weight:bold;">${(c.balance || 0).toLocaleString()} تومان</span></p>
         `;
 
         const invoices = await DB.getAll("invoices");
@@ -293,14 +296,14 @@ const App = (() => {
         invList.innerHTML = "";
 
         if (cInvoices.length === 0) {
-            invList.innerHTML = "<p>هیچ فاکتوری برای این مشتری ثبت نشده است.</p>";
+            invList.innerHTML = "<p>هیچ فاکتوری ثبت نشده است.</p>";
         } else {
             cInvoices.forEach(inv => {
                 let itemsList = inv.items.map(i => `${i.name} (${i.qty})`).join(', ');
                 invList.innerHTML += `<div class="tree-prod-item" style="flex-direction:column; align-items:flex-start;">
-                    <div><strong>فاکتور: ${inv.id}</strong> | تاریخ: ${inv.dateTime || inv.date}</div>
+                    <div><strong>فاکتور: ${inv.id}</strong> | تاریخ و ساعت: ${inv.dateTime}</div>
                     <div style="font-size:12px; color:#cbd5e1;">اقلام: ${itemsList}</div>
-                    <div style="font-size:13px;">کل: ${inv.totalAmount.toLocaleString()} | پرداخت: ${inv.paidAmount.toLocaleString()} | مانده: ${inv.dueAmount.toLocaleString()} تومان</div>
+                    <div style="font-size:13px;">کل: ${inv.totalAmount.toLocaleString()} | دریافتی: ${inv.paidAmount.toLocaleString()} | مانده: ${inv.dueAmount.toLocaleString()} تومان</div>
                 </div>`;
             });
         }
@@ -407,10 +410,11 @@ const App = (() => {
         const finalTotal = Math.max(0, total - (manualDiscount + autoDiscount));
         const due = finalTotal - paid;
 
+        const dtStr = getFaDateTime();
         const invoice = {
             id: "INV-" + Math.floor(100000 + Math.random() * 900000),
-            dateTime: getPersianDateTime(),
-            date: new Date().toLocaleDateString('fa-IR'),
+            dateTime: dtStr,
+            date: dtStr.split(' ')[0],
             customerId: custId,
             items: [...currentInvoiceItems],
             totalAmount: finalTotal,
@@ -437,20 +441,13 @@ const App = (() => {
         }
 
         await DB.put("invoices", invoice);
-        alert("فاکتور با موفقیت ثبت گردید.");
+        alert(`فاکتور در تاریخ و ساعت ${dtStr} با موفقیت ثبت شد.`);
         window.print();
 
         currentInvoiceItems = [];
         renderPosItems();
         loadProductsTree();
         loadCustomers();
-    }
-
-    async function deleteInvoice(invId) {
-        if (confirm("آیا از حذف این فاکتور اطمینان دارید؟")) {
-            await DB.deleteItem("invoices", invId);
-            updateDashboard();
-        }
     }
 
     function openRepairModal(repairId = null) {
@@ -488,7 +485,7 @@ const App = (() => {
 
         const repairData = {
             id: editingRepairId || "REP-" + Date.now(),
-            dateTime: editingRepairId ? undefined : getPersianDateTime(),
+            dateTime: editingRepairId ? undefined : getFaDateTime(),
             customerName: custName,
             phone: document.getElementById("repair-phone").value,
             device: document.getElementById("repair-device").value,
@@ -527,10 +524,10 @@ const App = (() => {
                 <td>${r.id}</td>
                 <td>${r.dateTime || '-'}</td>
                 <td>${r.customerName} (${r.phone || '-'})</td>
-                <td>${r.device} - سریال: ${r.serial || '-'}</td>
+                <td>${r.device} - ${r.serial || '-'}</td>
                 <td>${r.problem || '-'}</td>
-                <td>${r.deposit.toLocaleString()} تومان</td>
-                <td>${r.cost.toLocaleString()} تومان</td>
+                <td>${(r.deposit || 0).toLocaleString()} تومان</td>
+                <td>${(r.cost || 0).toLocaleString()} تومان</td>
                 <td><span class="badge">${r.status}</span></td>
                 <td>
                     <button onclick="App.openRepairModal('${r.id}')" class="btn btn-secondary btn-sm">ویرایش</button>
@@ -577,7 +574,7 @@ const App = (() => {
             dueDate: document.getElementById("cheque-due-date").value,
             customerName: document.getElementById("cheque-cust-name").value,
             status: document.getElementById("cheque-status").value,
-            createdAt: editingChequeId ? undefined : getPersianDateTime()
+            createdAt: editingChequeId ? undefined : getFaDateTime()
         };
 
         if (editingChequeId) {
@@ -608,8 +605,9 @@ const App = (() => {
                 <td>${ch.number}</td>
                 <td>${ch.bank || '-'}</td>
                 <td>${ch.customerName || '-'}</td>
-                <td>${ch.amount.toLocaleString()} تومان</td>
+                <td>${(ch.amount || 0).toLocaleString()} تومان</td>
                 <td>${ch.dueDate || '-'}</td>
+                <td>${ch.createdAt || '-'}</td>
                 <td><span class="badge">${ch.status}</span></td>
                 <td>
                     <button onclick="App.openChequeModal('${ch.id}')" class="btn btn-secondary btn-sm">ویرایش</button>
@@ -632,7 +630,7 @@ const App = (() => {
             cashBalance += inv.paidAmount || 0;
 
             if (inv.date === todayDate) todaySales += inv.totalAmount;
-            weeklySales += inv.totalAmount; 
+            weeklySales += inv.totalAmount;
             monthlySales += inv.totalAmount;
             yearlySales += inv.totalAmount;
 
@@ -675,7 +673,6 @@ const App = (() => {
         removePosItem,
         calcPosTotal,
         submitInvoice,
-        deleteInvoice,
         openRepairModal,
         saveRepair,
         deleteRepair,
