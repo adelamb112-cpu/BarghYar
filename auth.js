@@ -1,49 +1,66 @@
 const Auth = (() => {
-    let currentPin = localStorage.getItem("app_pin") || "1234";
-    let isEnabled = localStorage.getItem("pin_enabled") !== "false";
+    const DEFAULT_PASS = "1234";
+
+    function getPass() {
+        return localStorage.getItem("app_pin") || DEFAULT_PASS;
+    }
 
     function init() {
-        document.getElementById("pin-enable-toggle").checked = isEnabled;
-        if (!isEnabled) {
-            document.getElementById("auth-overlay").classList.remove("active");
-        }
+        showOverlay();
     }
 
-    function verifyPin() {
-        const val = document.getElementById("pin-input").value;
-        if (val === currentPin) {
-            document.getElementById("auth-overlay").classList.remove("active");
-            document.getElementById("pin-input").value = "";
-            document.getElementById("auth-error").innerText = "";
+    function showOverlay() {
+        let overlay = document.getElementById("auth-overlay");
+        if (!overlay) {
+            overlay = document.createElement("div");
+            overlay.id = "auth-overlay";
+            overlay.className = "modal-overlay active";
+            overlay.style.zIndex = "9999";
+            overlay.innerHTML = `
+                <div class="modal-card">
+                    <h3>🔐 ورود به نرم‌افزار</h3>
+                    <div class="form-group">
+                        <label>رمز عبور را وارد کنید:</label>
+                        <input type="password" id="auth-pass-input" placeholder="رمز عبور">
+                    </div>
+                    <button onclick="Auth.verify()" class="btn btn-primary" style="width:100%;">ورود</button>
+                </div>
+            `;
+            document.body.appendChild(overlay);
         } else {
-            document.getElementById("auth-error").innerText = "رمز عبور نادرست است";
+            overlay.classList.add("active");
         }
     }
 
-    function lock() {
-        if (isEnabled) {
-            document.getElementById("auth-overlay").classList.add("active");
-        }
-    }
-
-    function togglePinEnable() {
-        isEnabled = document.getElementById("pin-enable-toggle").checked;
-        localStorage.setItem("pin_enabled", isEnabled);
-    }
-
-    function changePin() {
-        const newPin = document.getElementById("new-pin-input").value;
-        if (newPin.length >= 4) {
-            currentPin = newPin;
-            localStorage.setItem("app_pin", newPin);
-            alert("رمز عبور با موفقیت تغییر یافت.");
-            document.getElementById("new-pin-input").value = "";
+    function verify() {
+        const input = document.getElementById("auth-pass-input").value;
+        if (input === getPass()) {
+            document.getElementById("auth-overlay").classList.remove("active");
+            document.getElementById("auth-pass-input").value = "";
         } else {
-            alert("رمز عبور باید حداقل 4 رقم باشد.");
+            alert("رمز عبور اشتباه است!");
         }
     }
 
-    window.addEventListener("blur", () => lock());
+    function openChangePassModal() {
+        document.getElementById("modal-change-pass").classList.add("active");
+    }
 
-    return { init, verifyPin, lock, togglePinEnable, changePin };
+    function changePassword() {
+        const oldP = document.getElementById("pass-old").value;
+        const newP = document.getElementById("pass-new").value;
+
+        if (oldP !== getPass()) {
+            return alert("رمز فعلی اشتباه است.");
+        }
+        if (!newP) {
+            return alert("رمز جدید را وارد کنید.");
+        }
+
+        localStorage.setItem("app_pin", newP);
+        alert("رمز عبور با موفقیت تغییر یافت.");
+        App.closeModals();
+    }
+
+    return { init, verify, openChangePassModal, changePassword };
 })();
