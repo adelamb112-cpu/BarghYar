@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BarghYar - سیستم حسابداری و انبارداری فروشگاه برق</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
+    <meta name="theme-color" content="#1e293b">
+</head>
+<body>
+
+    <!-- صفحه قفل و ورود -->
+    <div id="auth-overlay" class="modal-overlay active">
+        <div class="modal-card">
+            <h2>🔐 ورود به برق‌یار</h2>
+            <p>رمز عبور را وارد کنید (پیش‌فرض: 1234):</p>
+            <input type="password" id="pin-input" maxlength="6" placeholder="رمز عبور">
+            <button onclick="Auth.verifyPin()" class="btn btn-primary">ورود به برنامه</button>
+            <p id="auth-error" class="error-text"></p>
+        </div>
+    </div>
+
+    <!-- مدال افزودن دسته بندی -->
+    <div id="modal-category" class="modal-overlay">
+        <div class="modal-card">
+            <h3>+ افزودن دسته‌بندی جدید</h3>
+            <div class="form-group">
+                <label>نام دسته (مثلاً: سیم و کابل، لامپ):</label>
+                <input type="text" id="cat-name-input" placeholder="نام دسته‌بندی">
+            </div>
+            <div class="modal-actions">
+                <button onclick="App.saveCategory()" class="btn btn-success">ذخیره</button>
+                <button onclick="App.closeModals()" class="btn btn-danger">انصراف</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- مدال افزودن/ویرایش کالا -->
+    <div id="modal-product" class="modal-overlay">
+        <div class="modal-card modal-large">
+            <h3>📦 افزودن / ویرایش کالا</h3>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>دسته‌بندی:</label>
+                    <select id="prod-cat-select"></select>
+                </div>
+                <div class="form-group">
+                    <label>نام کالا (مثلاً: 9 وات / سیم 2.5):</label>
+                    <input type="text" id="prod-name-input">
+                </div>
+                <div class="form-group">
+                    <label>واحد سنجش:</label>
+                    <select id="prod-unit-input">
+                        <option value="عدد">عدد</option>
+                        <option value="متر">متر</option>
+                        <option value="حلقه">حلقه</option>
+                        <option value="بسته">بسته</option>
+                        <option value="دستگاه">دستگاه</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>قیمت خرید (تومان):</label>
+                    <input type="number" id="prod-buy-price" value="0">
+                </div>
+                <div class="form-group">
+                    <label>قیمت فروش عادی (تومان):</label>
+                    <input type="number" id="prod-sell-price" value="0">
+                </div>
+                <div class="form-group">
+                    <label>قیمت همکاری (تومان):</label>
+                    <input type="number" id="prod-coop-price" value="0">
+                </div>
+                <div class="form-group">
+                    <label>موجودی اولیه:</label>
+                    <input type="number" id="prod-stock" value="0">
+                </div>
+                <div class="form-group">
+                    <label>حداقل موجودی (هشدار کمبود):</label>
+                    <input type="number" id="prod-min-stock" value="5">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button onclick="App.saveProduct()" class="btn btn-success">ذخیره کالا</button>
+                <button onclick="App.closeModals()" class="btn btn-danger">انصراف</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- مدال مشتری جدید -->
+    <div id="modal-customer" class="modal-overlay">
+        <div class="modal-card">
+            <h3>👤 ثبت مشتری جدید</h3>
+            <div class="form-group">
+                <label>نام و نام خانوادگی:</label>
+                <input type="text" id="cust-name-input">
+            </div>
+            <div class="form-group">
+                <label>شماره تماس:</label>
+                <input type="text" id="cust-phone-input">
+            </div>
+            <div class="form-group">
+                <label>سقف اعتبار (تومان):</label>
+                <input type="number" id="cust-credit-input" value="0">
+            </div>
+            <div class="modal-actions">
+                <button onclick="App.saveCustomer()" class="btn btn-success">ذخیره مشتری</button>
+                <button onclick="App.closeModals()" class="btn btn-danger">انصراف</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- مدال پرونده مشتری -->
+    <div id="modal-customer-profile" class="modal-overlay">
+        <div class="modal-card modal-large">
+            <h3 id="profile-cust-name">پرونده مشتری</h3>
+            <div id="profile-details" class="profile-box"></div>
+            <h4>تاریخچه فاکتورها</h4>
+            <div id="profile-invoices-list"></div>
+            <div class="modal-actions">
+                <button onclick="App.closeModals()" class="btn btn-secondary">بستن</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <!-- نوار بالایی -->
+        <header class="top-header">
+            <h1>⚡ حسابداری برق یار (BarghYar)</h1>
+            <div class="status-bar">
+                <span id="sync-status" class="status-offline">☁️ آفلاین</span>
+                <button onclick="Auth.lock()" class="btn-icon">🔒 قفل</button>
+            </div>
+        </header>
+
+        <!-- منوی اصلی -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" onclick="App.showTab('pos')">🧾 فاکتور جدید</button>
+            <button class="tab-btn" onclick="App.showTab('inventory')">📦 انبار و کالاها</button>
+            <button class="tab-btn" onclick="App.showTab('customers')">👤 مشتریان</button>
+            <button class="tab-btn" onclick="App.showTab('accounting')">💰 حسابداری و گزارش</button>
+            <button class="tab-btn" onclick="App.showTab('settings')">⚙️ تنظیمات و بک‌آپ</button>
+        </nav>
+
+        <main class="content-area">
+            <!-- تب فاکتور جدید -->
+            <section id="tab-pos" class="tab-content active">
+                <h2>صدور فاکتور فروش</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>انتخاب مشتری:</label>
+                        <select id="pos-customer"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>نوع قیمت:</label>
+                        <select id="pos-price-type" onchange="App.onCategoryChange()">
+                            <option value="normal">عادی</option>
+                            <option value="coop">همکاری</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- انتخاب کالا -->
+                <div class="pos-item-select">
+                    <select id="pos-category-select" onchange="App.onCategoryChange()"></select>
+                    <select id="pos-product-select"></select>
+                    <input type="number" id="pos-qty" placeholder="تعداد / متراژ" value="1">
+                    <button onclick="App.addPosItem()" class="btn btn-success">+ افزودن به فاکتور</button>
+                </div>
+
+                <!-- جدول اقلام فاکتور -->
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>نام کالا</th>
+                            <th>تعداد/متراژ</th>
+                            <th>قیمت واحد</th>
+                            <th>مبلغ کل</th>
+                            <th>عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pos-items-table"></tbody>
+                </table>
+
+                <div class="invoice-summary">
+                    <div>جمع کل: <span id="pos-total-amount">۰</span> تومان</div>
+                    <div class="form-group">
+                        <label>تخفیف (تومان):</label>
+                        <input type="number" id="pos-discount" value="0" oninput="App.calcPosTotal()">
+                    </div>
+                    <div class="form-group">
+                        <label>پرداختی نقدی:</label>
+                        <input type="number" id="pos-paid" value="0" oninput="App.calcPosTotal()">
+                    </div>
+                    <div>مانده بدهی: <span id="pos-due-amount">۰</span> تومان</div>
+                    <button onclick="App.submitInvoice()" class="btn btn-primary btn-large">🖨️ ثبت و چاپ فاکتور</button>
+                </div>
+            </section>
+
+            <!-- تب انبار -->
+            <section id="tab-inventory" class="tab-content">
+                <h2>مدیریت انبار و گروه‌بندی کالاها</h2>
+                <div class="inventory-actions">
+                    <button onclick="App.openCategoryModal()" class="btn btn-secondary">+ دسته جدید</button>
+                    <button onclick="App.openProductModal()" class="btn btn-primary">+ کالای جدید</button>
+                </div>
+                <div id="inventory-tree" class="inventory-tree"></div>
+            </section>
+
+            <!-- تب مشتریان -->
+            <section id="tab-customers" class="tab-content">
+                <h2>پرونده مشتریان</h2>
+                <button onclick="App.openCustomerModal()" class="btn btn-primary">+ مشتری جدید</button>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>نام</th>
+                            <th>تلفن</th>
+                            <th>سقف اعتبار</th>
+                            <th>وضعیت حساب (مانده)</th>
+                            <th>عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customers-table"></tbody>
+                </table>
+            </section>
+
+            <!-- تب حسابداری و گزارشات -->
+            <section id="tab-accounting" class="tab-content">
+                <h2>گزارشات و صندوق</h2>
+                <div class="dashboard-cards">
+                    <div class="card">
+                        <h3>موجودی صندوق (دریافتی نقد)</h3>
+                        <p id="cash-balance">۰ تومان</p>
+                    </div>
+                    <div class="card">
+                        <h3>کل مطالبات (طلب از مشتریان)</h3>
+                        <p id="total-receivables">۰ تومان</p>
+                    </div>
+                    <div class="card">
+                        <h3>سود تقریبی فروش</h3>
+                        <p id="total-profit">۰ تومان</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- تب تنظیمات و پشتیبان -->
+            <section id="tab-settings" class="tab-content">
+                <h2>تنظیمات، امنیت و پشتیبان</h2>
+                <div class="settings-section">
+                    <h3>🔐 امنیت ورود</h3>
+                    <label>
+                        <input type="checkbox" id="pin-enable-toggle" onchange="Auth.togglePinEnable()"> فعال بودن رمز ورود
+                    </label>
+                    <div class="form-group">
+                        <input type="password" id="new-pin-input" placeholder="رمز جدید (۴ یا ۶ رقم)">
+                        <button onclick="Auth.changePin()" class="btn btn-secondary">تغییر رمز</button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>💾 پشتیبان‌گیری آفلاین</h3>
+                    <button onclick="DB.exportBackup()" class="btn btn-success">دانلود فایل پشتیبان (JSON)</button>
+                    <input type="file" id="import-file" onchange="DB.importBackup(event)" style="display:none">
+                    <button onclick="document.getElementById('import-file').click()" class="btn btn-warning">بازیابی پشتیبان</button>
+                </div>
+
+                <div class="settings-section">
+                    <h3>☁️ همگام‌سازی ابری (Cloud Sync)</h3>
+                    <p class="hint-text">اتصال به Supabase یا Firebase برای سینک چند دستگاهی:</p>
+                    <input type="text" id="cloud-endpoint" placeholder="آدرس API ابری">
+                    <button onclick="Sync.saveConfig()" class="btn btn-primary">ذخیره تنظیمات ابری</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="db.js"></script>
+    <script src="auth.js"></script>
+    <script src="sync.js"></script>
+    <script src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+    </script>
+</body>
+</html>
