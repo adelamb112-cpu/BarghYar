@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>برق یار - سیستم مدیریت فروشگاه</title>
-    <link rel="stylesheet" href="style.css?v=3">
+    <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
     <div class="app-container">
@@ -25,6 +25,7 @@
         </nav>
 
         <main class="content-area">
+            <!-- تب فاکتور -->
             <div id="tab-pos" class="tab-content active">
                 <div class="form-grid">
                     <div class="form-group">
@@ -78,12 +79,14 @@
                 </div>
             </div>
 
+            <!-- تب انبار -->
             <div id="tab-inventory" class="tab-content">
                 <button onclick="App.openCategoryModal()" class="btn btn-primary">+ دسته جدید</button>
                 <button onclick="App.openProductModal()" class="btn btn-success">+ کالای جدید</button>
                 <div id="inventory-tree" class="inventory-tree"></div>
             </div>
 
+            <!-- تب مشتریان -->
             <div id="tab-customers" class="tab-content">
                 <button onclick="App.openCustomerModal()" class="btn btn-primary">+ مشتری جدید</button>
                 <div class="table-responsive">
@@ -104,6 +107,7 @@
                 </div>
             </div>
 
+            <!-- تب تعمیرات -->
             <div id="tab-repairs" class="tab-content">
                 <button onclick="App.openRepairModal()" class="btn btn-primary">+ پذیرش تعمیرات</button>
                 <div class="table-responsive">
@@ -126,6 +130,7 @@
                 </div>
             </div>
 
+            <!-- تب چک‌ها -->
             <div id="tab-cheques" class="tab-content">
                 <button onclick="App.openChequeModal()" class="btn btn-primary">+ چک جدید</button>
                 <div class="table-responsive">
@@ -147,6 +152,7 @@
                 </div>
             </div>
 
+            <!-- تب داشبورد -->
             <div id="tab-dashboard" class="tab-content">
                 <div class="dashboard-cards">
                     <div class="card"><h3>فروش امروز</h3><p id="dash-sales-today">0 تومان</p></div>
@@ -159,6 +165,7 @@
                 </div>
             </div>
 
+            <!-- تب تنظیمات -->
             <div id="tab-settings" class="tab-content">
                 <h3>تغییر رمز عبور ورود</h3>
                 <button onclick="Auth.openChangePassModal()" class="btn btn-primary">🔑 تغییر رمز برنامه</button>
@@ -170,6 +177,7 @@
         </main>
     </div>
 
+    <!-- مودال‌ها -->
     <div id="modal-category" class="modal-overlay">
         <div class="modal-card">
             <h3>افزودن دسته‌بندی</h3>
@@ -299,9 +307,9 @@
         </div>
     </div>
 
-    <script src="db.js?v=3"></script>
-    <script src="auth.js?v=3"></script>
-    <script src="sync.js?v=3"></script>
-    <script src="app.js?v=3"></script>
+    <script src="db.js?v=4"></script>
+    <script src="auth.js?v=4"></script>
+    <script src="sync.js?v=4"></script>
+    <script src="app.js?v=4"></script>
 </body>
 </html>
