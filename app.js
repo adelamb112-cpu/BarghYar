@@ -33,8 +33,8 @@ const App = {
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
         const targetTab = document.getElementById('tab-' + tabId);
         if (targetTab) targetTab.classList.add('active');
-        if (event && event.currentTarget) {
-            event.currentTarget.classList.add('active');
+        if (window.event && window.event.currentTarget) {
+            window.event.currentTarget.classList.add('active');
         }
     },
 
