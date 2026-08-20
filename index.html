@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>برق یار - سیستم مدیریت فروشگاه</title>
-    <link rel="stylesheet" href="style.css?v=1.3">
+    <link rel="stylesheet" href="style.css?v=1.4">
 </head>
 <body>
     <div class="app-container">
@@ -24,11 +24,11 @@
 
         <nav class="tab-nav">
             <button class="tab-btn active" onclick="App.showTab('pos')">🛒 فاکتور (POS)</button>
-            <button class="tab-btn" onclick="App.showTab('inventory')">📦 انبار کالا</button>
+            <button class="tab-btn" onclick="App.showTab('inventory')">📦 انبارداری</button>
             <button class="tab-btn" onclick="App.showTab('customers')">👥 مشتریان</button>
             <button class="tab-btn" onclick="App.showTab('repairs')">🛠️ تعمیرات</button>
             <button class="tab-btn" onclick="App.showTab('cheques')">📑 چک‌ها</button>
-            <button class="tab-btn" onclick="App.showTab('dashboard')">📊 داشبورد</button>
+            <button class="tab-btn" onclick="App.showTab('dashboard')">📊 حسابداری</button>
             <button class="tab-btn" onclick="App.showTab('calculator')">🧮 ماشین‌حساب</button>
             <button class="tab-btn" onclick="App.showTab('settings')">⚙️ تنظیمات</button>
         </nav>
@@ -60,7 +60,10 @@
                         <input type="number" id="pos-qty" value="1" min="1">
                     </div>
                 </div>
-                <button onclick="App.addPosItem()" class="btn btn-primary">+ افزودن به فاکتور</button>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">
+                    <button onclick="App.addPosItem()" class="btn btn-primary">+ افزودن به فاکتور</button>
+                    <button onclick="App.openScanner('pos')" class="btn btn-secondary">📷 بارکد کالا</button>
+                </div>
 
                 <div class="table-responsive">
                     <table class="data-table">
@@ -84,7 +87,11 @@
                             <div id="pos-subtotal" class="summary-value">0 تومان</div>
                         </div>
                         <div class="form-group">
-                            <label>تخفیف درصد:</label>
+                            <label>تخفیف همکار (%):</label>
+                            <input type="number" id="pos-coop-percent" value="0" min="0" max="100" oninput="App.calcPosTotal()">
+                        </div>
+                        <div class="form-group">
+                            <label>تخفیف اضافی (%):</label>
                             <input type="number" id="pos-discount-percent" value="0" min="0" max="100" oninput="App.calcPosTotal()">
                         </div>
                         <div class="form-group">
@@ -107,6 +114,7 @@
                     <p class="muted" id="pos-datetime-hint">تاریخ ثبت: هنگام ذخیره ثبت می‌شود</p>
                     <button onclick="App.submitInvoice()" class="btn btn-success" style="width:100%; font-size:16px;">ثبت فاکتور و رفتن به مشتری</button>
                     <button onclick="App.printLastInvoice()" class="btn btn-primary" style="width:100%; font-size:14px; margin-top:8px;">🖨️ چاپ / PDF آخرین فاکتور</button>
+                    <button onclick="App.shareLastInvoice()" class="btn btn-secondary" style="width:100%; font-size:14px; margin-top:8px;">📤 ارسال فاکتور (پیام / اپ)</button>
                 </div>
             </div>
 
@@ -253,6 +261,30 @@
         </div>
     </div>
 
+    
+    <div id="modal-scanner" class="modal-overlay">
+        <div class="modal-card modal-large">
+            <h3>📷 اسکن بارکد / QR</h3>
+            <p class="muted">دوربین را روی بارکد بگیرید. بعد از تشخیص، خودتان تأیید کنید.</p>
+            <div id="scanner-video-wrap" style="position:relative;background:#000;border-radius:8px;overflow:hidden;min-height:220px">
+                <video id="scanner-video" playsinline style="width:100%;max-height:280px;object-fit:cover"></video>
+                <canvas id="scanner-canvas" style="display:none"></canvas>
+            </div>
+            <div class="form-group" style="margin-top:10px">
+                <label>کد تشخیص‌داده‌شده:</label>
+                <input type="text" id="scanner-result" placeholder="هنوز چیزی خوانده نشده">
+            </div>
+            <div class="form-group">
+                <label>تعداد (در فاکتور):</label>
+                <input type="number" id="scanner-qty" value="1" min="1">
+            </div>
+            <div class="modal-actions">
+                <button onclick="App.confirmScan()" class="btn btn-success">✓ تأیید و اعمال</button>
+                <button onclick="App.stopScanner()" class="btn btn-secondary">بستن</button>
+            </div>
+        </div>
+    </div>
+
     <div id="print-area" class="print-area"></div>
 
     </div>
@@ -271,9 +303,22 @@
 
     <div id="modal-product" class="modal-overlay">
         <div class="modal-card">
-            <h3>ثبت / ویرایش کالا</h3>
-            <div class="form-group"><label>دسته:</label><select id="prod-cat-select"></select></div>
+            <h3>ثبت / ویرایش کالا (انبارداری)</h3>
+            <div class="form-group">
+                <label>دسته:</label>
+                <div style="display:flex;gap:6px;align-items:center">
+                    <select id="prod-cat-select" style="flex:1"></select>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="App.quickAddCategory()">+ دسته</button>
+                </div>
+            </div>
             <div class="form-group"><label>نام کالا:</label><input type="text" id="prod-name-input"></div>
+            <div class="form-group">
+                <label>بارکد:</label>
+                <div style="display:flex;gap:6px">
+                    <input type="text" id="prod-barcode" placeholder="بارکد کالا" style="flex:1">
+                    <button type="button" class="btn btn-primary btn-sm" onclick="App.openScanner('product')">📷 اسکن</button>
+                </div>
+            </div>
             <div class="form-group"><label>واحد:</label><input type="text" id="prod-unit-input" value="عدد"></div>
             <div class="form-group"><label>قیمت خرید:</label><input type="number" id="prod-buy-price"></div>
             <div class="form-group"><label>قیمت فروش عادی:</label><input type="number" id="prod-sell-price"></div>
@@ -291,7 +336,11 @@
         <div class="modal-card">
             <h3>ثبت / ویرایش مشتری</h3>
             <div class="form-group"><label>نام و نام خانوادگی:</label><input type="text" id="cust-name-input"></div>
-            <div class="form-group"><label>کد ملی:</label><input type="text" id="cust-national-id"></div>
+            <div class="form-group"><label>کد ملی / بارکد:</label>
+                <div style="display:flex;gap:6px">
+                    <input type="text" id="cust-national-id" style="flex:1">
+                    <button type="button" class="btn btn-primary btn-sm" onclick="App.openScanner('customer')">📷</button>
+                </div></div>
             <div class="form-group"><label>تلفن:</label><input type="text" id="cust-phone-input"></div>
             <div class="form-group"><label>آدرس:</label><input type="text" id="cust-address-input"></div>
             <div class="form-group"><label>توضیحات تکمیلی:</label><input type="text" id="cust-note-input" placeholder="توضیحات مربوط به مشتری"></div>
@@ -387,10 +436,10 @@
         </div>
     </div>
 
-    <script src="db.js?v=1.3"></script>
-    <script src="auth.js?v=1.3"></script>
+    <script src="db.js?v=1.4"></script>
+    <script src="auth.js?v=1.4"></script>
     <script src="sync.js?v=1.1"></script>
-    <script src="app.js?v=1.3"></script>
-    <script src="calc.js?v=1.3"></script>
+    <script src="app.js?v=1.4"></script>
+    <script src="calc.js?v=1.4"></script>
 </body>
 </html>

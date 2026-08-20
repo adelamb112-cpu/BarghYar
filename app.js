@@ -127,11 +127,13 @@ const App = {
         const cust = customers.find(c => c.id == customerId);
 
         let unitPrice = prod.sellPrice;
+        const coopPct = parseFloat(document.getElementById('pos-coop-percent')?.value) || 0;
         if (cust && cust.isCoop) {
             unitPrice = prod.coopPrice || prod.sellPrice;
-            if (cust.discountPercent > 0) {
-                unitPrice = unitPrice * (1 - cust.discountPercent / 100);
-            }
+            const dp = cust.discountPercent || coopPct;
+            if (dp > 0) unitPrice = unitPrice * (1 - dp / 100);
+        } else if (coopPct > 0) {
+            unitPrice = (prod.coopPrice || prod.sellPrice) * (1 - coopPct / 100);
         }
 
         const existing = this.currentPosItems.find(i => i.productId == prodId);
@@ -256,6 +258,7 @@ const App = {
         document.getElementById('pos-customer').value = 'cash';
         document.getElementById('pos-discount').value = 0;
         document.getElementById('pos-discount-percent').value = 0;
+        const cp=document.getElementById('pos-coop-percent'); if(cp) cp.value=0;
         document.getElementById('pos-paid').value = 0;
         this.calcPosTotal();
         await this.renderInventory();
@@ -297,6 +300,7 @@ const App = {
                 document.getElementById('prod-coop-price').value = p.coopPrice;
                 document.getElementById('prod-stock').value = p.stock;
                 document.getElementById('prod-min-stock').value = p.minStock;
+                const bc=document.getElementById('prod-barcode'); if(bc) bc.value=p.barcode||'';
             }
         } else {
             document.getElementById('prod-name-input').value = '';
@@ -311,6 +315,7 @@ const App = {
     async saveProduct() {
         const categoryId = document.getElementById('prod-cat-select').value;
         const name = document.getElementById('prod-name-input').value.trim();
+        const barcode = (document.getElementById('prod-barcode')?.value || '').trim();
         const unit = document.getElementById('prod-unit-input').value.trim();
         const buyPrice = parseFloat(document.getElementById('prod-buy-price').value) || 0;
         const sellPrice = parseFloat(document.getElementById('prod-sell-price').value) || 0;
@@ -319,9 +324,9 @@ const App = {
         const minStock = parseInt(document.getElementById('prod-min-stock').value) || 5;
 
         if (!name) return alert('نام کالا را وارد کنید');
+        if (!categoryId) return alert('دسته را انتخاب کنید یا دسته جدید بسازید');
 
-        const products = await DB.getAll('products');
-        let productData = { categoryId, name, unit, buyPrice, sellPrice, coopPrice, stock, minStock };
+        let productData = { categoryId, name, barcode, unit, buyPrice, sellPrice, coopPrice, stock, minStock, updatedAt: this.getFaDateTime() };
 
         if (this.editingProductId) {
             productData.id = this.editingProductId;
@@ -349,11 +354,12 @@ const App = {
             html += `<div style="margin-bottom:15px; border:1px solid var(--border-color); padding:10px; border-radius:6px;">
                 <h3>📁 ${cat.name}</h3>
                 <div class="table-responsive"><table class="data-table">
-                    <thead><tr><th>کالا</th><th>خرید</th><th>فروش</th><th>همکار</th><th>موجودی</th><th>عملیات</th></tr></thead><tbody>`;
+                    <thead><tr><th>کالا</th><th>بارکد</th><th>خرید</th><th>فروش</th><th>همکار</th><th>موجودی</th><th>عملیات</th></tr></thead><tbody>`;
             catProds.forEach(p => {
                 const isLow = p.stock <= p.minStock;
                 html += `<tr style="${isLow ? 'background:#ef444422;' : ''}">
                     <td>${p.name} ${isLow ? '⚠️' : ''}</td>
+                    <td>${p.barcode || '—'}</td>
                     <td>${p.buyPrice.toLocaleString()}</td>
                     <td>${p.sellPrice.toLocaleString()}</td>
                     <td>${p.coopPrice.toLocaleString()}</td>
@@ -836,6 +842,172 @@ const App = {
                 document.getElementById('global-search').value = '';
             };
         });
+    },
+
+    scanMode: null,
+    scanStream: null,
+    scanTimer: null,
+
+    quickAddCategory() {
+        const name = prompt('نام دسته جدید:');
+        if (!name || !name.trim()) return;
+        const id = 'cat-' + Date.now();
+        DB.put('categories', { id, name: name.trim(), createdAt: this.getFaDateTime() }).then(async () => {
+            await this.renderCategoryOptions();
+            const sel = document.getElementById('prod-cat-select');
+            if (sel) sel.value = id;
+            alert('دسته «' + name.trim() + '» اضافه شد');
+        });
+    },
+
+    async openScanner(mode) {
+        this.scanMode = mode; // product | pos | customer
+        document.getElementById('scanner-result').value = '';
+        document.getElementById('scanner-qty').value = '1';
+        document.getElementById('modal-scanner').classList.add('active');
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { ideal: 'environment' } },
+                audio: false
+            });
+            this.scanStream = stream;
+            const video = document.getElementById('scanner-video');
+            video.srcObject = stream;
+            await video.play();
+            this.startScanLoop();
+        } catch (e) {
+            alert('دسترسی به دوربین ممکن نشد. بارکد را دستی وارد کنید.\n' + (e.message || ''));
+        }
+    },
+
+    startScanLoop() {
+        const video = document.getElementById('scanner-video');
+        const canvas = document.getElementById('scanner-canvas');
+        const ctx = canvas.getContext('2d');
+        const supportsBD = 'BarcodeDetector' in window;
+        let detector = null;
+        if (supportsBD) {
+            try { detector = new BarcodeDetector({ formats: ['qr_code','ean_13','ean_8','code_128','code_39','upc_a','upc_e'] }); } catch (_) {}
+        }
+        const tick = async () => {
+            if (!this.scanStream) return;
+            if (video.readyState >= 2) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0);
+                if (detector) {
+                    try {
+                        const codes = await detector.detect(canvas);
+                        if (codes && codes[0] && codes[0].rawValue) {
+                            document.getElementById('scanner-result').value = codes[0].rawValue;
+                        }
+                    } catch (_) {}
+                }
+            }
+            this.scanTimer = requestAnimationFrame(tick);
+        };
+        this.scanTimer = requestAnimationFrame(tick);
+    },
+
+    stopScanner() {
+        if (this.scanTimer) cancelAnimationFrame(this.scanTimer);
+        this.scanTimer = null;
+        if (this.scanStream) {
+            this.scanStream.getTracks().forEach(t => t.stop());
+            this.scanStream = null;
+        }
+        const video = document.getElementById('scanner-video');
+        if (video) video.srcObject = null;
+        document.getElementById('modal-scanner').classList.remove('active');
+    },
+
+    async confirmScan() {
+        const code = (document.getElementById('scanner-result').value || '').trim();
+        if (!code) return alert('کدی خوانده نشده. دستی وارد کنید یا دوباره اسکن کنید.');
+        if (!confirm('تأیید می‌کنید؟\nکد: ' + code)) return;
+
+        const qty = parseInt(document.getElementById('scanner-qty').value) || 1;
+        const mode = this.scanMode;
+        this.stopScanner();
+
+        if (mode === 'product') {
+            const bc = document.getElementById('prod-barcode');
+            if (bc) bc.value = code;
+            // اگر کالا با این بارکد هست، فرم را پر کن
+            const products = await DB.getAll('products');
+            const p = products.find(x => x.barcode === code);
+            if (p) {
+                await this.openProductModal(p.id);
+                alert('کالای موجود پیدا شد و فرم پر شد. در صورت نیاز ویرایش و ذخیره کنید.');
+            }
+            return;
+        }
+        if (mode === 'pos') {
+            const products = await DB.getAll('products');
+            const p = products.find(x => x.barcode === code || x.id === code || x.name === code);
+            if (!p) return alert('کالایی با این بارکد پیدا نشد. اول در انبارداری بارکد را روی کالا ثبت کنید.');
+            document.getElementById('pos-product-select').innerHTML =
+                `<option value="${p.id}">${p.name} - ${p.sellPrice.toLocaleString()} تومان</option>`;
+            document.getElementById('pos-product-select').value = p.id;
+            document.getElementById('pos-qty').value = qty;
+            await this.addPosItem();
+            alert('کالا به فاکتور اضافه شد. در صورت نیاز تعداد را اصلاح کنید.');
+            return;
+        }
+        if (mode === 'customer') {
+            // بارکد/کد ملی مشتری
+            const el = document.getElementById('cust-national-id');
+            if (el) el.value = code;
+        }
+    },
+
+    async buildInvoiceText(invoice) {
+        let custName = 'مشتری نقدی';
+        let phone = '';
+        if (invoice.customerId && invoice.customerId !== 'cash') {
+            const customers = await DB.getAll('customers');
+            const c = customers.find(x => x.id == invoice.customerId);
+            if (c) { custName = c.name; phone = c.phone || ''; }
+        }
+        let lines = [];
+        lines.push('⚡ فاکتور برق‌یار');
+        lines.push('شماره: ' + (invoice.number || '—'));
+        lines.push('تاریخ: ' + (invoice.date || ''));
+        lines.push('مشتری: ' + custName + (phone ? ' | ' + phone : ''));
+        lines.push('——————');
+        (invoice.items || []).forEach(it => {
+            lines.push(it.name + ' × ' + it.qty + ' = ' + Number(it.totalPrice).toLocaleString() + ' ت');
+        });
+        lines.push('——————');
+        lines.push('جمع: ' + Number(invoice.subtotal || 0).toLocaleString() + ' ت');
+        if (invoice.discount) lines.push('تخفیف: ' + Number(invoice.discount).toLocaleString() + ' ت');
+        lines.push('مبلغ کل: ' + Number(invoice.total || 0).toLocaleString() + ' تومان');
+        lines.push('پرداختی: ' + Number(invoice.paid || 0).toLocaleString() + ' ت');
+        lines.push('مانده: ' + Number(invoice.due || 0).toLocaleString() + ' ت');
+        lines.push('با تشکر از خرید شما');
+        return lines.join('\n');
+    },
+
+    async shareLastInvoice() {
+        const invoices = await DB.getAll('invoices');
+        const inv = invoices.find(i => i.id === this.lastInvoiceId) ||
+            invoices.sort((a,b) => String(b.id).localeCompare(String(a.id)))[0];
+        if (!inv) return alert('فاکتوری برای ارسال نیست');
+        const text = await this.buildInvoiceText(inv);
+        if (navigator.share) {
+            try {
+                await navigator.share({ title: 'فاکتور برق‌یار', text });
+                return;
+            } catch (e) {
+                if (e.name === 'AbortError') return;
+            }
+        }
+        try {
+            await navigator.clipboard.writeText(text);
+            alert('متن فاکتور کپی شد. می‌توانید در پیامک یا واتساپ بچسبانید.');
+        } catch {
+            prompt('متن فاکتور را کپی کنید:', text);
+        }
     },
 
 };
