@@ -9,8 +9,11 @@ const App = {
         if (typeof DB !== 'undefined' && DB.init) {
             await DB.init();
         }
+        this.applyTheme();
         this.updateClock();
         setInterval(() => this.updateClock(), 1000);
+        this.loadWeather();
+        setInterval(() => this.loadWeather(), 30 * 60 * 1000);
         await this.renderCategoryOptions();
         await this.renderCustomerOptions();
         await this.renderInventory();
@@ -27,9 +30,19 @@ const App = {
         return new Intl.DateTimeFormat('fa-IR', options).format(now);
     },
 
+    getFaDateTimeLong() {
+        const now = new Date();
+        return new Intl.DateTimeFormat('fa-IR', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+        }).format(now);
+    },
+
     updateClock() {
         const clockEl = document.getElementById('live-clock');
-        if (clockEl) clockEl.innerText = '⏱️ ' + this.getFaDateTime();
+        if (clockEl) clockEl.innerText = '⏱️ ' + this.getFaDateTimeLong();
+        const hint = document.getElementById('pos-datetime-hint');
+        if (hint) hint.innerText = 'تاریخ و ساعت ثبت: ' + this.getFaDateTimeLong();
     },
 
     showTab(tabId) {
@@ -59,11 +72,29 @@ const App = {
 
     async renderCustomerOptions() {
         const customers = await DB.getAll('customers');
-        const select = document.getElementById('pos-customer');
-        if (!select) return;
-        let html = '<option value="cash">مشتری نقدی (متفرقه)</option>';
-        customers.forEach(c => { html += `<option value="${c.id}">${c.name} (${c.phone || 'بدون تلفن'})</option>`; });
-        select.innerHTML = html;
+        const list = document.getElementById('pos-customer-list');
+        if (list) {
+            list.innerHTML = customers.map(c => `<option value="${c.name}" data-id="${c.id}" data-phone="${c.phone || ''}"></option>`).join('');
+        }
+        // keep hidden id field default
+        const hid = document.getElementById('pos-customer');
+        if (hid && !hid.value) hid.value = 'cash';
+    },
+
+    onCustomerNameInput() {
+        const name = (document.getElementById('pos-customer-name')?.value || '').trim();
+        const hid = document.getElementById('pos-customer');
+        const phoneEl = document.getElementById('pos-customer-phone');
+        DB.getAll('customers').then(customers => {
+            const c = customers.find(x => x.name === name);
+            if (c) {
+                if (hid) hid.value = c.id;
+                if (phoneEl && !phoneEl.value) phoneEl.value = c.phone || '';
+            } else {
+                if (hid) hid.value = 'new';
+            }
+            this.calcPosTotal();
+        });
     },
 
     async onCategoryChange() {
@@ -137,25 +168,55 @@ const App = {
 
     calcPosTotal() {
         const subtotal = this.currentPosItems.reduce((sum, item) => sum + item.totalPrice, 0);
-        const discountInput = document.getElementById('pos-discount');
-        const paidInput = document.getElementById('pos-paid');
-        const discount = discountInput ? (parseFloat(discountInput.value) || 0) : 0;
-        const paid = paidInput ? (parseFloat(paidInput.value) || 0) : 0;
+        const pct = parseFloat(document.getElementById('pos-discount-percent')?.value) || 0;
+        let discount = parseFloat(document.getElementById('pos-discount')?.value) || 0;
+        if (pct > 0) {
+            discount = Math.round(subtotal * pct / 100);
+            const di = document.getElementById('pos-discount');
+            if (di && document.activeElement !== di) di.value = discount;
+        }
+        const paid = parseFloat(document.getElementById('pos-paid')?.value) || 0;
         const total = Math.max(0, subtotal - discount);
         const due = Math.max(0, total - paid);
-
-        const totalEl = document.getElementById('pos-total-amount');
-        const dueEl = document.getElementById('pos-due-amount');
-        if (totalEl) totalEl.innerText = total.toLocaleString();
-        if (dueEl) dueEl.innerText = due.toLocaleString();
+        const set = (id, t) => { const el = document.getElementById(id); if (el) el.innerText = t; };
+        set('pos-subtotal', subtotal.toLocaleString() + ' تومان');
+        set('pos-total-amount', total.toLocaleString() + ' تومان');
+        set('pos-due-amount', due.toLocaleString() + ' تومان');
     },
 
     async submitInvoice() {
         if (this.currentPosItems.length === 0) return alert('فاکتور خالی است!');
-        const customerId = document.getElementById('pos-customer').value;
-        const discount = parseFloat(document.getElementById('pos-discount').value) || 0;
-        const paid = parseFloat(document.getElementById('pos-paid').value) || 0;
+        let customerId = document.getElementById('pos-customer')?.value || 'cash';
+        const custName = (document.getElementById('pos-customer-name')?.value || '').trim();
+        const custPhone = (document.getElementById('pos-customer-phone')?.value || '').trim();
+        if (custName && (customerId === 'cash' || customerId === 'new')) {
+            const customers = await DB.getAll('customers');
+            let existing = customers.find(c => c.name === custName);
+            if (!existing) {
+                existing = {
+                    id: 'c-' + Date.now(),
+                    name: custName,
+                    phone: custPhone,
+                    nationalId: '',
+                    address: '',
+                    note: '',
+                    isCoop: false,
+                    discountPercent: 0,
+                    credit: 0,
+                    createdAt: this.getFaDateTime()
+                };
+                await DB.put('customers', existing);
+            } else if (custPhone && !existing.phone) {
+                existing.phone = custPhone;
+                await DB.put('customers', existing);
+            }
+            customerId = existing.id;
+        }
+        const pct = parseFloat(document.getElementById('pos-discount-percent')?.value) || 0;
+        let discount = parseFloat(document.getElementById('pos-discount')?.value) || 0;
+        const paid = parseFloat(document.getElementById('pos-paid')?.value) || 0;
         const subtotal = this.currentPosItems.reduce((sum, item) => sum + item.totalPrice, 0);
+        if (pct > 0) discount = Math.round(subtotal * pct / 100);
         const total = Math.max(0, subtotal - discount);
         const due = Math.max(0, total - paid);
 
@@ -190,8 +251,22 @@ const App = {
         if (confirm('چاپ / ذخیره PDF فاکتور؟')) this.printInvoice(invoice);
         this.currentPosItems = [];
         this.renderPosTable();
+        document.getElementById('pos-customer-name').value = '';
+        document.getElementById('pos-customer-phone').value = '';
+        document.getElementById('pos-customer').value = 'cash';
+        document.getElementById('pos-discount').value = 0;
+        document.getElementById('pos-discount-percent').value = 0;
+        document.getElementById('pos-paid').value = 0;
+        this.calcPosTotal();
         await this.renderInventory();
+        await this.renderCustomerOptions();
+        await this.renderCustomersTable();
         await this.updateDashboard();
+        // بعد از ثبت برو بخش مشتری برای اصلاح
+        this.showTab('customers');
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.toggle('active', b.getAttribute('onclick')?.includes("'customers'"));
+        });
     },
 
     openCategoryModal() {
@@ -685,6 +760,83 @@ const App = {
         });
         box.innerHTML = alerts.length ? alerts.map(a => '<div class="alert-item">'+a+'</div>').join('') : '';
     }
+,
+
+    toggleTheme() {
+        const html = document.documentElement;
+        const cur = html.getAttribute('data-theme') || 'dark';
+        const next = cur === 'dark' ? 'light' : 'dark';
+        html.setAttribute('data-theme', next);
+        localStorage.setItem('barghyar_theme', next);
+    },
+
+    applyTheme() {
+        const t = localStorage.getItem('barghyar_theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+    },
+
+    async loadWeather() {
+        const box = document.getElementById('weather-box');
+        if (!box) return;
+        try {
+            // تهران به‌صورت پیش‌فرض (می‌توان بعداً شهر را تنظیم کرد)
+            const url = 'https://api.open-meteo.com/v1/forecast?latitude=35.69&longitude=51.39&current=temperature_2m,weather_code&timezone=Asia%2FTehran';
+            const res = await fetch(url);
+            const data = await res.json();
+            const t = data?.current?.temperature_2m;
+            const code = data?.current?.weather_code;
+            const icons = {0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',51:'🌧️',61:'🌧️',71:'🌨️',80:'🌦️',95:'⛈️'};
+            let icon = '🌤️';
+            for (const k of Object.keys(icons)) { if (Number(code) >= Number(k)) icon = icons[k]; }
+            box.innerText = icon + ' ' + (t != null ? Math.round(t) + '°C تهران' : '—');
+        } catch {
+            box.innerText = '🌤️ —';
+        }
+    },
+
+    async globalSearch(q) {
+        const box = document.getElementById('global-search-results');
+        if (!box) return;
+        q = (q || '').trim();
+        if (!q) { box.innerHTML = ''; box.style.display = 'none'; return; }
+        const [products, customers, invoices, repairs, cheques] = await Promise.all([
+            DB.getAll('products'), DB.getAll('customers'), DB.getAll('invoices'),
+            DB.getAll('repairs'), DB.getAll('cheques')
+        ]);
+        const items = [];
+        products.filter(p => (p.name||'').includes(q)).slice(0,5).forEach(p =>
+            items.push({type:'کالا', text: p.name + ' — موجودی ' + p.stock, tab:'inventory'}));
+        customers.filter(c => (c.name||'').includes(q) || (c.phone||'').includes(q)).slice(0,5).forEach(c =>
+            items.push({type:'مشتری', text: c.name + (c.phone?' — '+c.phone:''), tab:'customers', action: () => App.openCustomerProfile?.(c.id)}));
+        invoices.filter(i => String(i.number).includes(q) || (i.date||'').includes(q)).slice(0,5).forEach(i =>
+            items.push({type:'فاکتور', text: 'شماره ' + (i.number||'') + ' — ' + (i.total||0).toLocaleString() + ' ت', tab:'customers'}));
+        repairs.filter(r => (r.device||'').includes(q) || (r.problem||'').includes(q) || (r.code||'').includes(q)).slice(0,5).forEach(r =>
+            items.push({type:'تعمیر', text: (r.code||'') + ' ' + (r.device||''), tab:'repairs'}));
+        cheques.filter(c => String(c.number||'').includes(q) || (c.customerName||'').includes(q)).slice(0,5).forEach(c =>
+            items.push({type:'چک', text: (c.number||'') + ' — ' + (c.amount||0).toLocaleString(), tab:'cheques'}));
+        if (!items.length) {
+            box.innerHTML = '<div class="gs-item">موردی یافت نشد</div>';
+            box.style.display = 'block';
+            return;
+        }
+        box.innerHTML = items.map((it, idx) =>
+            `<div class="gs-item" data-tab="${it.tab}"><span class="gs-type">${it.type}</span> ${it.text}</div>`
+        ).join('');
+        box.style.display = 'block';
+        box.querySelectorAll('.gs-item').forEach(el => {
+            el.onclick = () => {
+                const tab = el.getAttribute('data-tab');
+                if (tab) {
+                    App.showTab(tab);
+                    document.querySelectorAll('.tab-btn').forEach(b => {
+                        b.classList.toggle('active', b.getAttribute('onclick')?.includes("'" + tab + "'"));
+                    });
+                }
+                box.style.display = 'none';
+                document.getElementById('global-search').value = '';
+            };
+        });
+    },
 
 };
 

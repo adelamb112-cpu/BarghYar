@@ -1,17 +1,25 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="fa" dir="rtl" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>برق یار - سیستم مدیریت فروشگاه</title>
-    <link rel="stylesheet" href="style.css?v=1.2">
+    <link rel="stylesheet" href="style.css?v=1.3">
 </head>
 <body>
     <div class="app-container">
         <header class="top-header">
-            <h2>⚡ سیستم مدیریت و حسابداری برق یار</h2>
-            <div id="live-clock" style="font-weight: bold; color: #38bdf8;"></div>
-            <div id="sync-status" class="status-offline">☁️ آفلاین</div>
+            <div class="header-row">
+                <h2>⚡ برق یار</h2>
+                <div id="live-clock" class="live-clock">⏱️ —</div>
+                <div id="weather-box" class="weather-box" title="هواشناسی">🌤️ —</div>
+                <button type="button" class="theme-btn" onclick="App.toggleTheme()" title="حالت شب/روز">🌓</button>
+                <div id="sync-status" class="status-offline">☁️ آفلاین</div>
+            </div>
+            <div class="header-search">
+                <input type="search" id="global-search" class="search-input global-search" placeholder="🔍 جستجو در کالا، مشتری، فاکتور، تعمیرات، چک..." oninput="App.globalSearch(this.value)">
+            </div>
+            <div id="global-search-results" class="global-search-results"></div>
         </header>
 
         <nav class="tab-nav">
@@ -30,8 +38,14 @@
             <div id="tab-pos" class="tab-content active">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>انتخاب مشتری:</label>
-                        <select id="pos-customer" onchange="App.onCustomerChange()"></select>
+                        <label>نام مشتری (تایپ یا انتخاب):</label>
+                        <input type="text" id="pos-customer-name" list="pos-customer-list" placeholder="نام مشتری را بنویسید..." oninput="App.onCustomerNameInput()">
+                        <datalist id="pos-customer-list"></datalist>
+                        <input type="hidden" id="pos-customer" value="cash">
+                    </div>
+                    <div class="form-group">
+                        <label>تلفن (اختیاری):</label>
+                        <input type="text" id="pos-customer-phone" placeholder="۰۹۱۲...">
                     </div>
                     <div class="form-group">
                         <label>دسته‌بندی:</label>
@@ -66,17 +80,32 @@
                 <div class="invoice-summary">
                     <div class="form-grid">
                         <div class="form-group">
-                            <label>تخفیف (تومان):</label>
+                            <label>جمع جزء:</label>
+                            <div id="pos-subtotal" class="summary-value">0 تومان</div>
+                        </div>
+                        <div class="form-group">
+                            <label>تخفیف درصد:</label>
+                            <input type="number" id="pos-discount-percent" value="0" min="0" max="100" oninput="App.calcPosTotal()">
+                        </div>
+                        <div class="form-group">
+                            <label>تخفیف مبلغ (تومان):</label>
                             <input type="number" id="pos-discount" value="0" oninput="App.calcPosTotal()">
+                        </div>
+                        <div class="form-group">
+                            <label>مبلغ کل:</label>
+                            <div id="pos-total-amount" class="summary-value highlight">0 تومان</div>
                         </div>
                         <div class="form-group">
                             <label>پرداختی (تومان):</label>
                             <input type="number" id="pos-paid" value="0" oninput="App.calcPosTotal()">
                         </div>
+                        <div class="form-group">
+                            <label>مانده بدهی:</label>
+                            <div id="pos-due-amount" class="summary-value due">0 تومان</div>
+                        </div>
                     </div>
-                    <h3>مبلغ فاکتور: <span id="pos-total-amount">0</span> تومان</h3>
-                    <h4>مانده بدهی: <span id="pos-due-amount">0</span> تومان</h4>
-                    <button onclick="App.submitInvoice()" class="btn btn-success" style="width:100%; font-size:16px;">ثبت فاکتور</button>
+                    <p class="muted" id="pos-datetime-hint">تاریخ ثبت: هنگام ذخیره ثبت می‌شود</p>
+                    <button onclick="App.submitInvoice()" class="btn btn-success" style="width:100%; font-size:16px;">ثبت فاکتور و رفتن به مشتری</button>
                     <button onclick="App.printLastInvoice()" class="btn btn-primary" style="width:100%; font-size:14px; margin-top:8px;">🖨️ چاپ / PDF آخرین فاکتور</button>
                 </div>
             </div>
@@ -358,10 +387,10 @@
         </div>
     </div>
 
-    <script src="db.js?v=1.2"></script>
-    <script src="auth.js?v=1.2"></script>
+    <script src="db.js?v=1.3"></script>
+    <script src="auth.js?v=1.3"></script>
     <script src="sync.js?v=1.1"></script>
-    <script src="app.js?v=1.2"></script>
-    <script src="calc.js?v=1.2"></script>
+    <script src="app.js?v=1.3"></script>
+    <script src="calc.js?v=1.3"></script>
 </body>
 </html>
